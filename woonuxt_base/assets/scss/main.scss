@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-black;
+  }
+}
+
+@layer components {
+  .card {
+    @apply flex items-center justify-center shadow-medium border-gray-light bg-white rounded-[10px] hover:bg-gray-light cursor-pointer transition;
+  }
+  .section-title {
+    @apply uppercase text-[20px] font-extrabold text-center;
+  }
+
+  .button {
+    @apply uppercase px-[42px] py-[10px] rounded-full text-center transition flex gap-1 items-center justify-center;
+
+    &.button-primary {
+      @apply bg-primary hover:bg-primary-dark text-white;
+    }
+
+    &.button-secondary {
+      @apply bg-secondary hover:bg-secondary-dark text-white;
+    }
+
+    &.button-disabled {
+      @apply bg-disabled pointer-events-none opacity-50;
+    }
+  }
+}
