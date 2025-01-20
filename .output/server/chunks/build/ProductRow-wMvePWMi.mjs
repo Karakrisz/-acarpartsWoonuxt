@@ -1,0 +1,39 @@
+import { a as _sfc_main$1 } from './ProductCard-ocl8XymJ.mjs';
+import { useSSRContext, mergeProps } from 'vue';
+import { ssrRenderAttrs, ssrRenderList, ssrRenderComponent } from 'vue/server-renderer';
+
+const _sfc_main = {
+  __name: "ProductRow",
+  __ssrInlineRender: true,
+  props: {
+    products: { type: Array, default: null }
+  },
+  setup(__props) {
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_ProductCard = _sfc_main$1;
+      if (__props.products) {
+        _push(`<div${ssrRenderAttrs(mergeProps({ class: "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]" }, _attrs))}><!--[-->`);
+        ssrRenderList(__props.products, (node, i) => {
+          _push(ssrRenderComponent(_component_ProductCard, {
+            key: node.databaseId,
+            class: "w-full",
+            node,
+            index: i
+          }, null, _parent));
+        });
+        _push(`<!--]--></div>`);
+      } else {
+        _push(`<!---->`);
+      }
+    };
+  }
+};
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/shopElements/ProductRow.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+
+export { _sfc_main as _ };
+//# sourceMappingURL=ProductRow-wMvePWMi.mjs.map

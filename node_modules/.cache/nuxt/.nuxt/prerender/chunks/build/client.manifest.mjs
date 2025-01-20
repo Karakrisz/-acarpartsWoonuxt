@@ -1,0 +1,557 @@
+const client_manifest = {
+  "_!~{00e}~.js": {
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true,
+    "file": "CartCard.Sjr5AHFr.css",
+    "src": "_!~{00e}~.js"
+  },
+  "_!~{00k}~.js": {
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true,
+    "file": "ProductCard.C-GG-Tj2.css",
+    "src": "_!~{00k}~.js"
+  },
+  "_!~{00m}~.js": {
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true,
+    "file": "DownloadableItems.Bf0YRWvv.css",
+    "src": "_!~{00m}~.js"
+  },
+  "_!~{00p}~.js": {
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true,
+    "file": "ProductGrid.Jhyz4Fdw.css",
+    "src": "_!~{00p}~.js"
+  },
+  "_02XNVmx1.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "02XNVmx1.js",
+    "name": "useWishlist",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "_9ruToQQh.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "9ruToQQh.js",
+    "name": "WishList.vue",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js"
+    ]
+  },
+  "_B1hGwQU2.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "B1hGwQU2.js",
+    "name": "ProductPrice.vue",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "_ByOYZIjI.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "ByOYZIjI.js",
+    "name": "DownloadableItems",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ],
+    "css": [
+      "DownloadableItems.Bf0YRWvv.css"
+    ]
+  },
+  "DownloadableItems.Bf0YRWvv.css": {
+    "file": "DownloadableItems.Bf0YRWvv.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "_CbKdreXC.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "CbKdreXC.js",
+    "name": "CartCard",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js"
+    ],
+    "css": [
+      "CartCard.Sjr5AHFr.css"
+    ]
+  },
+  "CartCard.Sjr5AHFr.css": {
+    "file": "CartCard.Sjr5AHFr.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "_D0ncmh0y.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "D0ncmh0y.js",
+    "name": "PasswordInput.vue",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "_DKz76st4.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DKz76st4.js",
+    "name": "CountrySelect",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "_DNKu2a2y.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DNKu2a2y.js",
+    "name": "ProductCard.vue",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_B1hGwQU2.js"
+    ],
+    "css": [
+      "ProductCard.C-GG-Tj2.css"
+    ]
+  },
+  "ProductCard.C-GG-Tj2.css": {
+    "file": "ProductCard.C-GG-Tj2.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "_DmNwArQ8.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DmNwArQ8.js",
+    "name": "StarRating.vue",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "_DyQLf-QV.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DyQLf-QV.js",
+    "name": "ProductGrid",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_XnHHUoS2.js",
+      "_DNKu2a2y.js"
+    ],
+    "dynamicImports": [
+      "woonuxt_base/app/components/filtering/StarRatingFilter.vue",
+      "woonuxt_base/app/components/filtering/ResetFiltersButton.vue"
+    ],
+    "css": [
+      "ProductGrid.Jhyz4Fdw.css"
+    ]
+  },
+  "ProductGrid.Jhyz4Fdw.css": {
+    "file": "ProductGrid.Jhyz4Fdw.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "_JPUqvuwO.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "JPUqvuwO.js",
+    "name": "ProductRow",
+    "imports": [
+      "_DNKu2a2y.js",
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "_XnHHUoS2.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "XnHHUoS2.js",
+    "name": "default",
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "node_modules/nuxt/dist/app/entry.js": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "B33GKiR2.js",
+    "name": "entry",
+    "src": "node_modules/nuxt/dist/app/entry.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "woonuxt_base/app/components/shopElements/Cart.vue",
+      "woonuxt_base/app/components/shopElements/Cart.vue"
+    ],
+    "css": [
+      "entry.DASLn94C.css"
+    ],
+    "assets": [],
+    "_globalCSS": true
+  },
+  "entry.DASLn94C.css": {
+    "file": "entry.DASLn94C.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/components/WPAdminLink.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "R_63RlBZ.js",
+    "name": "WPAdminLink",
+    "src": "woonuxt_base/app/components/WPAdminLink.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ],
+    "css": []
+  },
+  "WPAdminLink.C3qsui3D.css": {
+    "file": "WPAdminLink.C3qsui3D.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/components/filtering/ResetFiltersButton.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "qUHjLu-q.js",
+    "name": "ResetFiltersButton",
+    "src": "woonuxt_base/app/components/filtering/ResetFiltersButton.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "woonuxt_base/app/components/filtering/StarRatingFilter.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "C-dhB7Q1.js",
+    "name": "StarRatingFilter",
+    "src": "woonuxt_base/app/components/filtering/StarRatingFilter.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_DmNwArQ8.js"
+    ]
+  },
+  "woonuxt_base/app/components/forms/LoginAndRegister.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "_4PRZ2G0.js",
+    "name": "LoginAndRegister",
+    "src": "woonuxt_base/app/components/forms/LoginAndRegister.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_D0ncmh0y.js"
+    ],
+    "css": []
+  },
+  "LoginAndRegister.BWNMNmkP.css": {
+    "file": "LoginAndRegister.BWNMNmkP.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/components/shopElements/Cart.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DQMyBYXD.js",
+    "name": "Cart",
+    "src": "woonuxt_base/app/components/shopElements/Cart.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CbKdreXC.js",
+      "node_modules/nuxt/dist/app/entry.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js"
+    ]
+  },
+  "woonuxt_base/app/pages/categories.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "H0qiwQhD.js",
+    "name": "categories",
+    "src": "woonuxt_base/app/pages/categories.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ],
+    "css": [
+      "categories.Dr1micw-.css"
+    ]
+  },
+  "categories.Dr1micw-.css": {
+    "file": "categories.Dr1micw-.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/pages/checkout.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "BcoJZplZ.js",
+    "name": "checkout",
+    "src": "woonuxt_base/app/pages/checkout.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_D0ncmh0y.js",
+      "_DKz76st4.js",
+      "_CbKdreXC.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js"
+    ],
+    "css": []
+  },
+  "checkout.DpAtbZ4D.css": {
+    "file": "checkout.DpAtbZ4D.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/pages/contact.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DFzWCSws.js",
+    "name": "contact",
+    "src": "woonuxt_base/app/pages/contact.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js"
+    ]
+  },
+  "woonuxt_base/app/pages/index.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "B0r46Bwk.js",
+    "name": "index",
+    "src": "woonuxt_base/app/pages/index.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_JPUqvuwO.js",
+      "_DNKu2a2y.js",
+      "_B1hGwQU2.js"
+    ],
+    "css": []
+  },
+  "index.CPfLAiNs.css": {
+    "file": "index.CPfLAiNs.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/pages/my-account/index.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "D634MY4N.js",
+    "name": "index",
+    "src": "woonuxt_base/app/pages/my-account/index.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_DKz76st4.js",
+      "_D0ncmh0y.js",
+      "_ByOYZIjI.js",
+      "_9ruToQQh.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js"
+    ],
+    "dynamicImports": [
+      "woonuxt_base/app/components/forms/LoginAndRegister.vue"
+    ],
+    "css": []
+  },
+  "index.CObW2VLc.css": {
+    "file": "index.CObW2VLc.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/pages/my-account/lost-password.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DDPrHZBd.js",
+    "name": "lost-password",
+    "src": "woonuxt_base/app/pages/my-account/lost-password.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_D0ncmh0y.js"
+    ],
+    "css": [
+      "lost-password.DpW-NvFk.css"
+    ]
+  },
+  "lost-password.DpW-NvFk.css": {
+    "file": "lost-password.DpW-NvFk.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/pages/order-summary.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "B4-wKpFN.js",
+    "name": "order-summary",
+    "src": "woonuxt_base/app/pages/order-summary.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_ByOYZIjI.js",
+      "_XnHHUoS2.js"
+    ]
+  },
+  "woonuxt_base/app/pages/product-category/[slug].vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "BBFvdglK.js",
+    "name": "_slug_",
+    "src": "woonuxt_base/app/pages/product-category/[slug].vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_DyQLf-QV.js",
+      "node_modules/nuxt/dist/app/entry.js",
+      "_XnHHUoS2.js",
+      "_DNKu2a2y.js",
+      "_B1hGwQU2.js"
+    ]
+  },
+  "woonuxt_base/app/pages/product/[slug].vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "0EnRh9QA.js",
+    "name": "_slug_",
+    "src": "woonuxt_base/app/pages/product/[slug].vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/nuxt/dist/app/entry.js",
+      "_DNKu2a2y.js",
+      "_DmNwArQ8.js",
+      "_XnHHUoS2.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js",
+      "_JPUqvuwO.js"
+    ],
+    "dynamicImports": [
+      "woonuxt_base/app/components/WPAdminLink.vue"
+    ],
+    "css": []
+  },
+  "_slug_.BSPYUHG-.css": {
+    "file": "_slug_.BSPYUHG-.css",
+    "resourceType": "style",
+    "prefetch": true,
+    "preload": true
+  },
+  "woonuxt_base/app/pages/products.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "DMNnM5By.js",
+    "name": "products",
+    "src": "woonuxt_base/app/pages/products.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_DyQLf-QV.js",
+      "node_modules/nuxt/dist/app/entry.js",
+      "_XnHHUoS2.js",
+      "_DNKu2a2y.js",
+      "_B1hGwQU2.js"
+    ]
+  },
+  "woonuxt_base/app/pages/wishlist.vue": {
+    "resourceType": "script",
+    "module": true,
+    "prefetch": true,
+    "preload": true,
+    "file": "BtTOOBwm.js",
+    "name": "wishlist",
+    "src": "woonuxt_base/app/pages/wishlist.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_9ruToQQh.js",
+      "node_modules/nuxt/dist/app/entry.js",
+      "_B1hGwQU2.js",
+      "_02XNVmx1.js"
+    ]
+  },
+  "woonuxt_base/assets/fonts/titoliDiTesta.woff2": {
+    "resourceType": "font",
+    "mimeType": "font/woff2",
+    "file": "titoliDiTesta.CgfQMe29.woff2",
+    "src": "woonuxt_base/assets/fonts/titoliDiTesta.woff2"
+  }
+};
+
+export { client_manifest as default };
+//# sourceMappingURL=client.manifest.mjs.map

@@ -1,0 +1,4 @@
+const DisclosureItem_vue_vue_type_style_index_0_scoped_2d7588c8_lang = ".transition-max-height[data-v-2d7588c8]{transition:max-height .3s ease-out}";
+
+export { DisclosureItem_vue_vue_type_style_index_0_scoped_2d7588c8_lang as D };
+//# sourceMappingURL=DisclosureItem-styles-1.mjs-B-JUaoS8.mjs.map

@@ -1,0 +1,11700 @@
+import { hasInjectionContext, inject, version as version$1, ref, watchEffect, watch, getCurrentInstance, defineAsyncComponent, toRef, isRef, defineComponent, h, computed, useSSRContext, useAttrs, mergeProps, unref, openBlock, createElementBlock, renderSlot, createCommentVNode, useId, provide, shallowReactive, Suspense, nextTick, Fragment, Transition, shallowRef, onServerPrefetch, reactive, resolveComponent, withCtx, createVNode, createBlock, withModifiers, createTextVNode, toDisplayString as toDisplayString$1, createApp, effectScope, getCurrentScope, createElementVNode, onErrorCaptured, resolveDynamicComponent, isReadonly, Text, isShallow, isReactive, toRaw } from 'vue';
+import { $ as $fetch$1, h as createError$1, l as klona, m as hash, n as defu, o as defuFn, p as createHooks, q as parse$1, r as getRequestHeader, t as consola, v as destr, w as isEqual$1, x as setCookie, y as getCookie, z as deleteCookie, A as sanitizeStatusCode, B as toRouteMatcher, C as createRouter$1, D as getRequestHeaders } from '../runtime.mjs';
+import { b as baseURL } from '../routes/renderer.mjs';
+import { CapoPlugin, getActiveHead } from 'unhead';
+import { defineHeadPlugin, composableNames, unpackMeta } from '@unhead/shared';
+import { RouterView, createMemoryHistory, createRouter, START_LOCATION } from 'vue-router';
+import { Icon, getIcon, loadIcon as loadIcon$1, _api, disableCache, addAPIProvider } from '@iconify/vue';
+import { gql, GraphQLClient } from 'graphql-request';
+import { ssrRenderAttrs, ssrRenderAttr, ssrRenderComponent, ssrRenderList, ssrInterpolate, ssrRenderSuspense, ssrRenderVNode } from 'vue/server-renderer';
+import { getIconCSS } from '@iconify/utils/lib/css/icon';
+import 'node:http';
+import 'node:https';
+import 'node:fs';
+import 'node:path';
+import 'node:url';
+import '@iconify/utils';
+import 'consola/core';
+import 'ipx';
+import 'vue-bundle-renderer/runtime';
+import 'devalue';
+import '@unhead/ssr';
+
+function createContext$1(opts = {}) {
+  let currentInstance;
+  let isSingleton = false;
+  const checkConflict = (instance) => {
+    if (currentInstance && currentInstance !== instance) {
+      throw new Error("Context conflict");
+    }
+  };
+  let als;
+  if (opts.asyncContext) {
+    const _AsyncLocalStorage = opts.AsyncLocalStorage || globalThis.AsyncLocalStorage;
+    if (_AsyncLocalStorage) {
+      als = new _AsyncLocalStorage();
+    } else {
+      console.warn("[unctx] `AsyncLocalStorage` is not provided.");
+    }
+  }
+  const _getCurrentInstance = () => {
+    if (als && currentInstance === void 0) {
+      const instance = als.getStore();
+      if (instance !== void 0) {
+        return instance;
+      }
+    }
+    return currentInstance;
+  };
+  return {
+    use: () => {
+      const _instance = _getCurrentInstance();
+      if (_instance === void 0) {
+        throw new Error("Context is not available");
+      }
+      return _instance;
+    },
+    tryUse: () => {
+      return _getCurrentInstance();
+    },
+    set: (instance, replace) => {
+      if (!replace) {
+        checkConflict(instance);
+      }
+      currentInstance = instance;
+      isSingleton = true;
+    },
+    unset: () => {
+      currentInstance = void 0;
+      isSingleton = false;
+    },
+    call: (instance, callback) => {
+      checkConflict(instance);
+      currentInstance = instance;
+      try {
+        return als ? als.run(instance, callback) : callback();
+      } finally {
+        if (!isSingleton) {
+          currentInstance = void 0;
+        }
+      }
+    },
+    async callAsync(instance, callback) {
+      currentInstance = instance;
+      const onRestore = () => {
+        currentInstance = instance;
+      };
+      const onLeave = () => currentInstance === instance ? onRestore : void 0;
+      asyncHandlers$1.add(onLeave);
+      try {
+        const r = als ? als.run(instance, callback) : callback();
+        if (!isSingleton) {
+          currentInstance = void 0;
+        }
+        return await r;
+      } finally {
+        asyncHandlers$1.delete(onLeave);
+      }
+    }
+  };
+}
+function createNamespace$1(defaultOpts = {}) {
+  const contexts = {};
+  return {
+    get(key, opts = {}) {
+      if (!contexts[key]) {
+        contexts[key] = createContext$1({ ...defaultOpts, ...opts });
+      }
+      contexts[key];
+      return contexts[key];
+    }
+  };
+}
+const _globalThis = typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof global !== "undefined" ? global : {};
+const globalKey$2 = "__unctx__";
+const defaultNamespace = _globalThis[globalKey$2] || (_globalThis[globalKey$2] = createNamespace$1());
+const getContext = (key, opts = {}) => defaultNamespace.get(key, opts);
+const asyncHandlersKey$1 = "__unctx_async_handlers__";
+const asyncHandlers$1 = _globalThis[asyncHandlersKey$1] || (_globalThis[asyncHandlersKey$1] = /* @__PURE__ */ new Set());
+
+if (!globalThis.$fetch) {
+  globalThis.$fetch = $fetch$1.create({
+    baseURL: baseURL()
+  });
+}
+const appPageTransition = { "name": "page", "mode": "default" };
+const appKeepalive = false;
+const nuxtLinkDefaults = { "prefetch": true, "prefetchOn": { "visibility": false }, "componentName": "NuxtLink" };
+const asyncDataDefaults = { "deep": false };
+const appId = "nuxt-app";
+function getNuxtAppCtx(id = appId) {
+  return getContext(id, {
+    asyncContext: false
+  });
+}
+const NuxtPluginIndicator = "__nuxt_plugin";
+function createNuxtApp(options) {
+  var _a;
+  let hydratingCount = 0;
+  const nuxtApp = {
+    _id: options.id || appId || "nuxt-app",
+    _scope: effectScope(),
+    provide: void 0,
+    globalName: "nuxt",
+    versions: {
+      get nuxt() {
+        return "3.13.2";
+      },
+      get vue() {
+        return nuxtApp.vueApp.version;
+      }
+    },
+    payload: shallowReactive({
+      ...((_a = options.ssrContext) == null ? void 0 : _a.payload) || {},
+      data: shallowReactive({}),
+      state: reactive({}),
+      once: /* @__PURE__ */ new Set(),
+      _errors: shallowReactive({})
+    }),
+    static: {
+      data: {}
+    },
+    runWithContext(fn) {
+      if (nuxtApp._scope.active && !getCurrentScope()) {
+        return nuxtApp._scope.run(() => callWithNuxt(nuxtApp, fn));
+      }
+      return callWithNuxt(nuxtApp, fn);
+    },
+    isHydrating: false,
+    deferHydration() {
+      if (!nuxtApp.isHydrating) {
+        return () => {
+        };
+      }
+      hydratingCount++;
+      let called = false;
+      return () => {
+        if (called) {
+          return;
+        }
+        called = true;
+        hydratingCount--;
+        if (hydratingCount === 0) {
+          nuxtApp.isHydrating = false;
+          return nuxtApp.callHook("app:suspense:resolve");
+        }
+      };
+    },
+    _asyncDataPromises: {},
+    _asyncData: shallowReactive({}),
+    _payloadRevivers: {},
+    ...options
+  };
+  {
+    nuxtApp.payload.serverRendered = true;
+  }
+  if (nuxtApp.ssrContext) {
+    nuxtApp.payload.path = nuxtApp.ssrContext.url;
+    nuxtApp.ssrContext.nuxt = nuxtApp;
+    nuxtApp.ssrContext.payload = nuxtApp.payload;
+    nuxtApp.ssrContext.config = {
+      public: nuxtApp.ssrContext.runtimeConfig.public,
+      app: nuxtApp.ssrContext.runtimeConfig.app
+    };
+  }
+  nuxtApp.hooks = createHooks();
+  nuxtApp.hook = nuxtApp.hooks.hook;
+  {
+    const contextCaller = async function(hooks, args) {
+      for (const hook of hooks) {
+        await nuxtApp.runWithContext(() => hook(...args));
+      }
+    };
+    nuxtApp.hooks.callHook = (name2, ...args) => nuxtApp.hooks.callHookWith(contextCaller, name2, ...args);
+  }
+  nuxtApp.callHook = nuxtApp.hooks.callHook;
+  nuxtApp.provide = (name2, value) => {
+    const $name = "$" + name2;
+    defineGetter$1(nuxtApp, $name, value);
+    defineGetter$1(nuxtApp.vueApp.config.globalProperties, $name, value);
+  };
+  defineGetter$1(nuxtApp.vueApp, "$nuxt", nuxtApp);
+  defineGetter$1(nuxtApp.vueApp.config.globalProperties, "$nuxt", nuxtApp);
+  const runtimeConfig = options.ssrContext.runtimeConfig;
+  nuxtApp.provide("config", runtimeConfig);
+  return nuxtApp;
+}
+function registerPluginHooks(nuxtApp, plugin2) {
+  if (plugin2.hooks) {
+    nuxtApp.hooks.addHooks(plugin2.hooks);
+  }
+}
+async function applyPlugin(nuxtApp, plugin2) {
+  if (typeof plugin2 === "function") {
+    const { provide: provide2 } = await nuxtApp.runWithContext(() => plugin2(nuxtApp)) || {};
+    if (provide2 && typeof provide2 === "object") {
+      for (const key in provide2) {
+        nuxtApp.provide(key, provide2[key]);
+      }
+    }
+  }
+}
+async function applyPlugins(nuxtApp, plugins2) {
+  var _a, _b, _c, _d;
+  const resolvedPlugins = [];
+  const unresolvedPlugins = [];
+  const parallels = [];
+  const errors = [];
+  let promiseDepth = 0;
+  async function executePlugin(plugin2) {
+    var _a2;
+    const unresolvedPluginsForThisPlugin = ((_a2 = plugin2.dependsOn) == null ? void 0 : _a2.filter((name2) => plugins2.some((p) => p._name === name2) && !resolvedPlugins.includes(name2))) ?? [];
+    if (unresolvedPluginsForThisPlugin.length > 0) {
+      unresolvedPlugins.push([new Set(unresolvedPluginsForThisPlugin), plugin2]);
+    } else {
+      const promise = applyPlugin(nuxtApp, plugin2).then(async () => {
+        if (plugin2._name) {
+          resolvedPlugins.push(plugin2._name);
+          await Promise.all(unresolvedPlugins.map(async ([dependsOn, unexecutedPlugin]) => {
+            if (dependsOn.has(plugin2._name)) {
+              dependsOn.delete(plugin2._name);
+              if (dependsOn.size === 0) {
+                promiseDepth++;
+                await executePlugin(unexecutedPlugin);
+              }
+            }
+          }));
+        }
+      });
+      if (plugin2.parallel) {
+        parallels.push(promise.catch((e) => errors.push(e)));
+      } else {
+        await promise;
+      }
+    }
+  }
+  for (const plugin2 of plugins2) {
+    if (((_a = nuxtApp.ssrContext) == null ? void 0 : _a.islandContext) && ((_b = plugin2.env) == null ? void 0 : _b.islands) === false) {
+      continue;
+    }
+    registerPluginHooks(nuxtApp, plugin2);
+  }
+  for (const plugin2 of plugins2) {
+    if (((_c = nuxtApp.ssrContext) == null ? void 0 : _c.islandContext) && ((_d = plugin2.env) == null ? void 0 : _d.islands) === false) {
+      continue;
+    }
+    await executePlugin(plugin2);
+  }
+  await Promise.all(parallels);
+  if (promiseDepth) {
+    for (let i = 0; i < promiseDepth; i++) {
+      await Promise.all(parallels);
+    }
+  }
+  if (errors.length) {
+    throw errors[0];
+  }
+}
+// @__NO_SIDE_EFFECTS__
+function defineNuxtPlugin(plugin2) {
+  if (typeof plugin2 === "function") {
+    return plugin2;
+  }
+  const _name = plugin2._name || plugin2.name;
+  delete plugin2.name;
+  return Object.assign(plugin2.setup || (() => {
+  }), plugin2, { [NuxtPluginIndicator]: true, _name });
+}
+function callWithNuxt(nuxt, setup, args) {
+  const fn = () => setup();
+  const nuxtAppCtx = getNuxtAppCtx(nuxt._id);
+  {
+    return nuxt.vueApp.runWithContext(() => nuxtAppCtx.callAsync(nuxt, fn));
+  }
+}
+function tryUseNuxtApp(id) {
+  var _a;
+  let nuxtAppInstance;
+  if (hasInjectionContext()) {
+    nuxtAppInstance = (_a = getCurrentInstance()) == null ? void 0 : _a.appContext.app.$nuxt;
+  }
+  nuxtAppInstance = nuxtAppInstance || getNuxtAppCtx(id).tryUse();
+  return nuxtAppInstance || null;
+}
+function useNuxtApp(id) {
+  const nuxtAppInstance = tryUseNuxtApp(id);
+  if (!nuxtAppInstance) {
+    {
+      throw new Error("[nuxt] instance unavailable");
+    }
+  }
+  return nuxtAppInstance;
+}
+// @__NO_SIDE_EFFECTS__
+function useRuntimeConfig(_event) {
+  return useNuxtApp().$config;
+}
+function defineGetter$1(obj, key, val) {
+  Object.defineProperty(obj, key, { get: () => val });
+}
+function defineAppConfig(config) {
+  return config;
+}
+const HASH_RE = /#/g;
+const AMPERSAND_RE = /&/g;
+const SLASH_RE = /\//g;
+const EQUAL_RE = /=/g;
+const IM_RE = /\?/g;
+const PLUS_RE = /\+/g;
+const ENC_CARET_RE = /%5e/gi;
+const ENC_BACKTICK_RE = /%60/gi;
+const ENC_PIPE_RE = /%7c/gi;
+const ENC_SPACE_RE = /%20/gi;
+const ENC_ENC_SLASH_RE = /%252f/gi;
+function encode(text) {
+  return encodeURI("" + text).replace(ENC_PIPE_RE, "|");
+}
+function encodeQueryValue(input) {
+  return encode(typeof input === "string" ? input : JSON.stringify(input)).replace(PLUS_RE, "%2B").replace(ENC_SPACE_RE, "+").replace(HASH_RE, "%23").replace(AMPERSAND_RE, "%26").replace(ENC_BACKTICK_RE, "`").replace(ENC_CARET_RE, "^").replace(SLASH_RE, "%2F");
+}
+function encodeQueryKey(text) {
+  return encodeQueryValue(text).replace(EQUAL_RE, "%3D");
+}
+function encodePath(text) {
+  return encode(text).replace(HASH_RE, "%23").replace(IM_RE, "%3F").replace(ENC_ENC_SLASH_RE, "%2F").replace(AMPERSAND_RE, "%26").replace(PLUS_RE, "%2B");
+}
+function encodeParam(text) {
+  return encodePath(text).replace(SLASH_RE, "%2F");
+}
+function decode(text = "") {
+  try {
+    return decodeURIComponent("" + text);
+  } catch {
+    return "" + text;
+  }
+}
+function decodeQueryKey(text) {
+  return decode(text.replace(PLUS_RE, " "));
+}
+function decodeQueryValue(text) {
+  return decode(text.replace(PLUS_RE, " "));
+}
+function parseQuery(parametersString = "") {
+  const object = {};
+  if (parametersString[0] === "?") {
+    parametersString = parametersString.slice(1);
+  }
+  for (const parameter of parametersString.split("&")) {
+    const s = parameter.match(/([^=]+)=?(.*)/) || [];
+    if (s.length < 2) {
+      continue;
+    }
+    const key = decodeQueryKey(s[1]);
+    if (key === "__proto__" || key === "constructor") {
+      continue;
+    }
+    const value = decodeQueryValue(s[2] || "");
+    if (object[key] === void 0) {
+      object[key] = value;
+    } else if (Array.isArray(object[key])) {
+      object[key].push(value);
+    } else {
+      object[key] = [object[key], value];
+    }
+  }
+  return object;
+}
+function encodeQueryItem(key, value) {
+  if (typeof value === "number" || typeof value === "boolean") {
+    value = String(value);
+  }
+  if (!value) {
+    return encodeQueryKey(key);
+  }
+  if (Array.isArray(value)) {
+    return value.map((_value) => `${encodeQueryKey(key)}=${encodeQueryValue(_value)}`).join("&");
+  }
+  return `${encodeQueryKey(key)}=${encodeQueryValue(value)}`;
+}
+function stringifyQuery(query) {
+  return Object.keys(query).filter((k2) => query[k2] !== void 0).map((k2) => encodeQueryItem(k2, query[k2])).filter(Boolean).join("&");
+}
+const PROTOCOL_STRICT_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{1,2})/;
+const PROTOCOL_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{2})?/;
+const PROTOCOL_RELATIVE_REGEX = /^([/\\]\s*){2,}[^/\\]/;
+const PROTOCOL_SCRIPT_RE = /^[\s\0]*(blob|data|javascript|vbscript):$/i;
+const TRAILING_SLASH_RE = /\/$|\/\?|\/#/;
+const JOIN_LEADING_SLASH_RE = /^\.?\//;
+function hasProtocol(inputString, opts = {}) {
+  if (typeof opts === "boolean") {
+    opts = { acceptRelative: opts };
+  }
+  if (opts.strict) {
+    return PROTOCOL_STRICT_REGEX.test(inputString);
+  }
+  return PROTOCOL_REGEX.test(inputString) || (opts.acceptRelative ? PROTOCOL_RELATIVE_REGEX.test(inputString) : false);
+}
+function isScriptProtocol(protocol) {
+  return !!protocol && PROTOCOL_SCRIPT_RE.test(protocol);
+}
+function hasTrailingSlash(input = "", respectQueryAndFragment) {
+  if (!respectQueryAndFragment) {
+    return input.endsWith("/");
+  }
+  return TRAILING_SLASH_RE.test(input);
+}
+function withoutTrailingSlash(input = "", respectQueryAndFragment) {
+  if (!respectQueryAndFragment) {
+    return (hasTrailingSlash(input) ? input.slice(0, -1) : input) || "/";
+  }
+  if (!hasTrailingSlash(input, true)) {
+    return input || "/";
+  }
+  let path = input;
+  let fragment = "";
+  const fragmentIndex = input.indexOf("#");
+  if (fragmentIndex >= 0) {
+    path = input.slice(0, fragmentIndex);
+    fragment = input.slice(fragmentIndex);
+  }
+  const [s0, ...s] = path.split("?");
+  const cleanPath = s0.endsWith("/") ? s0.slice(0, -1) : s0;
+  return (cleanPath || "/") + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
+}
+function withTrailingSlash(input = "", respectQueryAndFragment) {
+  if (!respectQueryAndFragment) {
+    return input.endsWith("/") ? input : input + "/";
+  }
+  if (hasTrailingSlash(input, true)) {
+    return input || "/";
+  }
+  let path = input;
+  let fragment = "";
+  const fragmentIndex = input.indexOf("#");
+  if (fragmentIndex >= 0) {
+    path = input.slice(0, fragmentIndex);
+    fragment = input.slice(fragmentIndex);
+    if (!path) {
+      return fragment;
+    }
+  }
+  const [s0, ...s] = path.split("?");
+  return s0 + "/" + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
+}
+function hasLeadingSlash(input = "") {
+  return input.startsWith("/");
+}
+function withLeadingSlash(input = "") {
+  return hasLeadingSlash(input) ? input : "/" + input;
+}
+function withQuery(input, query) {
+  const parsed = parseURL(input);
+  const mergedQuery = { ...parseQuery(parsed.search), ...query };
+  parsed.search = stringifyQuery(mergedQuery);
+  return stringifyParsedURL(parsed);
+}
+function isNonEmptyURL(url) {
+  return url && url !== "/";
+}
+function joinURL(base, ...input) {
+  let url = base || "";
+  for (const segment of input.filter((url2) => isNonEmptyURL(url2))) {
+    if (url) {
+      const _segment = segment.replace(JOIN_LEADING_SLASH_RE, "");
+      url = withTrailingSlash(url) + _segment;
+    } else {
+      url = segment;
+    }
+  }
+  return url;
+}
+function isEqual(a, b2, options = {}) {
+  if (!options.trailingSlash) {
+    a = withTrailingSlash(a);
+    b2 = withTrailingSlash(b2);
+  }
+  if (!options.leadingSlash) {
+    a = withLeadingSlash(a);
+    b2 = withLeadingSlash(b2);
+  }
+  if (!options.encoding) {
+    a = decode(a);
+    b2 = decode(b2);
+  }
+  return a === b2;
+}
+const protocolRelative = Symbol.for("ufo:protocolRelative");
+function parseURL(input = "", defaultProto) {
+  const _specialProtoMatch = input.match(
+    /^[\s\0]*(blob:|data:|javascript:|vbscript:)(.*)/i
+  );
+  if (_specialProtoMatch) {
+    const [, _proto, _pathname = ""] = _specialProtoMatch;
+    return {
+      protocol: _proto.toLowerCase(),
+      pathname: _pathname,
+      href: _proto + _pathname,
+      auth: "",
+      host: "",
+      search: "",
+      hash: ""
+    };
+  }
+  if (!hasProtocol(input, { acceptRelative: true })) {
+    return parsePath(input);
+  }
+  const [, protocol = "", auth, hostAndPath = ""] = input.replace(/\\/g, "/").match(/^[\s\0]*([\w+.-]{2,}:)?\/\/([^/@]+@)?(.*)/) || [];
+  let [, host = "", path = ""] = hostAndPath.match(/([^#/?]*)(.*)?/) || [];
+  if (protocol === "file:") {
+    path = path.replace(/\/(?=[A-Za-z]:)/, "");
+  }
+  const { pathname, search, hash: hash2 } = parsePath(path);
+  return {
+    protocol: protocol.toLowerCase(),
+    auth: auth ? auth.slice(0, Math.max(0, auth.length - 1)) : "",
+    host,
+    pathname,
+    search,
+    hash: hash2,
+    [protocolRelative]: !protocol
+  };
+}
+function parsePath(input = "") {
+  const [pathname = "", search = "", hash2 = ""] = (input.match(/([^#?]*)(\?[^#]*)?(#.*)?/) || []).splice(1);
+  return {
+    pathname,
+    search,
+    hash: hash2
+  };
+}
+function stringifyParsedURL(parsed) {
+  const pathname = parsed.pathname || "";
+  const search = parsed.search ? (parsed.search.startsWith("?") ? "" : "?") + parsed.search : "";
+  const hash2 = parsed.hash || "";
+  const auth = parsed.auth ? parsed.auth + "@" : "";
+  const host = parsed.host || "";
+  const proto = parsed.protocol || parsed[protocolRelative] ? (parsed.protocol || "") + "//" : "";
+  return proto + auth + host + pathname + search + hash2;
+}
+const LayoutMetaSymbol = Symbol("layout-meta");
+const PageRouteSymbol = Symbol("route");
+const useRouter = () => {
+  var _a;
+  return (_a = useNuxtApp()) == null ? void 0 : _a.$router;
+};
+const useRoute = () => {
+  if (hasInjectionContext()) {
+    return inject(PageRouteSymbol, useNuxtApp()._route);
+  }
+  return useNuxtApp()._route;
+};
+// @__NO_SIDE_EFFECTS__
+function defineNuxtRouteMiddleware(middleware) {
+  return middleware;
+}
+const addRouteMiddleware = (name2, middleware, options = {}) => {
+  const nuxtApp = useNuxtApp();
+  const global2 = options.global || typeof name2 !== "string";
+  const mw = middleware;
+  if (!mw) {
+    console.warn("[nuxt] No route middleware passed to `addRouteMiddleware`.", name2);
+    return;
+  }
+  if (global2) {
+    nuxtApp._middleware.global.push(mw);
+  } else {
+    nuxtApp._middleware.named[name2] = mw;
+  }
+};
+const isProcessingMiddleware = () => {
+  try {
+    if (useNuxtApp()._processingMiddleware) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
+const navigateTo = (to, options) => {
+  if (!to) {
+    to = "/";
+  }
+  const toPath = typeof to === "string" ? to : "path" in to ? resolveRouteObject(to) : useRouter().resolve(to).href;
+  const isExternalHost = hasProtocol(toPath, { acceptRelative: true });
+  const isExternal = (options == null ? void 0 : options.external) || isExternalHost;
+  if (isExternal) {
+    if (!(options == null ? void 0 : options.external)) {
+      throw new Error("Navigating to an external URL is not allowed by default. Use `navigateTo(url, { external: true })`.");
+    }
+    const { protocol } = new URL(toPath, "http://localhost");
+    if (protocol && isScriptProtocol(protocol)) {
+      throw new Error(`Cannot navigate to a URL with '${protocol}' protocol.`);
+    }
+  }
+  const inMiddleware = isProcessingMiddleware();
+  const router = useRouter();
+  const nuxtApp = useNuxtApp();
+  {
+    if (nuxtApp.ssrContext) {
+      const fullPath = typeof to === "string" || isExternal ? toPath : router.resolve(to).fullPath || "/";
+      const location2 = isExternal ? toPath : joinURL((/* @__PURE__ */ useRuntimeConfig()).app.baseURL, fullPath);
+      const redirect = async function(response) {
+        await nuxtApp.callHook("app:redirected");
+        const encodedLoc = location2.replace(/"/g, "%22");
+        const encodedHeader = encodeURL(location2, isExternalHost);
+        nuxtApp.ssrContext._renderResponse = {
+          statusCode: sanitizeStatusCode((options == null ? void 0 : options.redirectCode) || 302, 302),
+          body: `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=${encodedLoc}"></head></html>`,
+          headers: { location: encodedHeader }
+        };
+        return response;
+      };
+      if (!isExternal && inMiddleware) {
+        router.afterEach((final) => final.fullPath === fullPath ? redirect(false) : void 0);
+        return to;
+      }
+      return redirect(!inMiddleware ? void 0 : (
+        /* abort route navigation */
+        false
+      ));
+    }
+  }
+  if (isExternal) {
+    nuxtApp._scope.stop();
+    if (options == null ? void 0 : options.replace) {
+      (void 0).replace(toPath);
+    } else {
+      (void 0).href = toPath;
+    }
+    if (inMiddleware) {
+      if (!nuxtApp.isHydrating) {
+        return false;
+      }
+      return new Promise(() => {
+      });
+    }
+    return Promise.resolve();
+  }
+  return (options == null ? void 0 : options.replace) ? router.replace(to) : router.push(to);
+};
+function resolveRouteObject(to) {
+  return withQuery(to.path || "", to.query || {}) + (to.hash || "");
+}
+function encodeURL(location2, isExternalHost = false) {
+  const url = new URL(location2, "http://localhost");
+  if (!isExternalHost) {
+    return url.pathname + url.search + url.hash;
+  }
+  if (location2.startsWith("//")) {
+    return url.toString().replace(url.protocol, "");
+  }
+  return url.toString();
+}
+const NUXT_ERROR_SIGNATURE = "__nuxt_error";
+const useError = () => toRef(useNuxtApp().payload, "error");
+const showError = (error) => {
+  const nuxtError = createError(error);
+  try {
+    const nuxtApp = useNuxtApp();
+    const error2 = useError();
+    if (false) ;
+    error2.value = error2.value || nuxtError;
+  } catch {
+    throw nuxtError;
+  }
+  return nuxtError;
+};
+const isNuxtError = (error) => !!error && typeof error === "object" && NUXT_ERROR_SIGNATURE in error;
+const createError = (error) => {
+  const nuxtError = createError$1(error);
+  Object.defineProperty(nuxtError, NUXT_ERROR_SIGNATURE, {
+    value: true,
+    configurable: false,
+    writable: false
+  });
+  return nuxtError;
+};
+version$1[0] === "3";
+function resolveUnref(r) {
+  return typeof r === "function" ? r() : unref(r);
+}
+function resolveUnrefHeadInput(ref2) {
+  if (ref2 instanceof Promise || ref2 instanceof Date || ref2 instanceof RegExp)
+    return ref2;
+  const root = resolveUnref(ref2);
+  if (!ref2 || !root)
+    return root;
+  if (Array.isArray(root))
+    return root.map((r) => resolveUnrefHeadInput(r));
+  if (typeof root === "object") {
+    const resolved = {};
+    for (const k2 in root) {
+      if (!Object.prototype.hasOwnProperty.call(root, k2)) {
+        continue;
+      }
+      if (k2 === "titleTemplate" || k2[0] === "o" && k2[1] === "n") {
+        resolved[k2] = unref(root[k2]);
+        continue;
+      }
+      resolved[k2] = resolveUnrefHeadInput(root[k2]);
+    }
+    return resolved;
+  }
+  return root;
+}
+defineHeadPlugin({
+  hooks: {
+    "entries:resolve": (ctx) => {
+      for (const entry2 of ctx.entries)
+        entry2.resolvedInput = resolveUnrefHeadInput(entry2.input);
+    }
+  }
+});
+const headSymbol = "usehead";
+const _global = typeof globalThis !== "undefined" ? globalThis : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
+const globalKey$1 = "__unhead_injection_handler__";
+function setHeadInjectionHandler(handler) {
+  _global[globalKey$1] = handler;
+}
+function injectHead() {
+  if (globalKey$1 in _global) {
+    return _global[globalKey$1]();
+  }
+  const head = inject(headSymbol);
+  if (!head && "production" !== "production")
+    console.warn("Unhead is missing Vue context, falling back to shared context. This may have unexpected results.");
+  return head || getActiveHead();
+}
+function useHead(input, options = {}) {
+  const head = options.head || injectHead();
+  if (head) {
+    if (!head.ssr)
+      return clientUseHead(head, input, options);
+    return head.push(input, options);
+  }
+}
+function clientUseHead(head, input, options = {}) {
+  const deactivated = ref(false);
+  const resolvedInput = ref({});
+  watchEffect(() => {
+    resolvedInput.value = deactivated.value ? {} : resolveUnrefHeadInput(input);
+  });
+  const entry2 = head.push(resolvedInput.value, options);
+  watch(resolvedInput, (e) => {
+    entry2.patch(e);
+  });
+  getCurrentInstance();
+  return entry2;
+}
+const coreComposableNames = [
+  "injectHead"
+];
+({
+  "@unhead/vue": [...coreComposableNames, ...composableNames]
+});
+function useSeoMeta(input, options) {
+  const { title, titleTemplate, ...meta } = input;
+  return useHead({
+    title,
+    titleTemplate,
+    // @ts-expect-error runtime type
+    _flatMeta: meta
+  }, {
+    ...options,
+    transform(t) {
+      const meta2 = unpackMeta({ ...t._flatMeta });
+      delete t._flatMeta;
+      return {
+        // @ts-expect-error runtime type
+        ...t,
+        meta: meta2
+      };
+    }
+  });
+}
+[CapoPlugin({ track: true })];
+const unhead_KgADcZ0jPj = /* @__PURE__ */ defineNuxtPlugin({
+  name: "nuxt:head",
+  enforce: "pre",
+  setup(nuxtApp) {
+    const head = nuxtApp.ssrContext.head;
+    setHeadInjectionHandler(
+      // need a fresh instance of the nuxt app to avoid parallel requests interfering with each other
+      () => useNuxtApp().vueApp._context.provides.usehead
+    );
+    nuxtApp.vueApp.use(head);
+  }
+});
+function createContext(opts = {}) {
+  let currentInstance;
+  let isSingleton = false;
+  const checkConflict = (instance) => {
+    if (currentInstance && currentInstance !== instance) {
+      throw new Error("Context conflict");
+    }
+  };
+  let als;
+  if (opts.asyncContext) {
+    const _AsyncLocalStorage = opts.AsyncLocalStorage || globalThis.AsyncLocalStorage;
+    if (_AsyncLocalStorage) {
+      als = new _AsyncLocalStorage();
+    } else {
+      console.warn("[unctx] `AsyncLocalStorage` is not provided.");
+    }
+  }
+  const _getCurrentInstance = () => {
+    if (als && currentInstance === void 0) {
+      const instance = als.getStore();
+      if (instance !== void 0) {
+        return instance;
+      }
+    }
+    return currentInstance;
+  };
+  return {
+    use: () => {
+      const _instance = _getCurrentInstance();
+      if (_instance === void 0) {
+        throw new Error("Context is not available");
+      }
+      return _instance;
+    },
+    tryUse: () => {
+      return _getCurrentInstance();
+    },
+    set: (instance, replace) => {
+      if (!replace) {
+        checkConflict(instance);
+      }
+      currentInstance = instance;
+      isSingleton = true;
+    },
+    unset: () => {
+      currentInstance = void 0;
+      isSingleton = false;
+    },
+    call: (instance, callback) => {
+      checkConflict(instance);
+      currentInstance = instance;
+      try {
+        return als ? als.run(instance, callback) : callback();
+      } finally {
+        if (!isSingleton) {
+          currentInstance = void 0;
+        }
+      }
+    },
+    async callAsync(instance, callback) {
+      currentInstance = instance;
+      const onRestore = () => {
+        currentInstance = instance;
+      };
+      const onLeave = () => currentInstance === instance ? onRestore : void 0;
+      asyncHandlers.add(onLeave);
+      try {
+        const r = als ? als.run(instance, callback) : callback();
+        if (!isSingleton) {
+          currentInstance = void 0;
+        }
+        return await r;
+      } finally {
+        asyncHandlers.delete(onLeave);
+      }
+    }
+  };
+}
+function createNamespace(defaultOpts = {}) {
+  const contexts = {};
+  return {
+    get(key, opts = {}) {
+      if (!contexts[key]) {
+        contexts[key] = createContext({ ...defaultOpts, ...opts });
+      }
+      contexts[key];
+      return contexts[key];
+    }
+  };
+}
+const _globalThis$1 = typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof global !== "undefined" ? global : {};
+const globalKey = "__unctx__";
+_globalThis$1[globalKey] || (_globalThis$1[globalKey] = createNamespace());
+const asyncHandlersKey = "__unctx_async_handlers__";
+const asyncHandlers = _globalThis$1[asyncHandlersKey] || (_globalThis$1[asyncHandlersKey] = /* @__PURE__ */ new Set());
+function executeAsync(function_) {
+  const restores = [];
+  for (const leaveHandler of asyncHandlers) {
+    const restore2 = leaveHandler();
+    if (restore2) {
+      restores.push(restore2);
+    }
+  }
+  const restore = () => {
+    for (const restore2 of restores) {
+      restore2();
+    }
+  };
+  let awaitable = function_();
+  if (awaitable && typeof awaitable === "object" && "catch" in awaitable) {
+    awaitable = awaitable.catch((error) => {
+      restore();
+      throw error;
+    });
+  }
+  return [awaitable, restore];
+}
+const interpolatePath = (route, match) => {
+  return match.path.replace(/(:\w+)\([^)]+\)/g, "$1").replace(/(:\w+)[?+*]/g, "$1").replace(/:\w+/g, (r) => {
+    var _a;
+    return ((_a = route.params[r.slice(1)]) == null ? void 0 : _a.toString()) || "";
+  });
+};
+const generateRouteKey$1 = (routeProps, override) => {
+  const matchedRoute = routeProps.route.matched.find((m) => {
+    var _a;
+    return ((_a = m.components) == null ? void 0 : _a.default) === routeProps.Component.type;
+  });
+  const source = override ?? (matchedRoute == null ? void 0 : matchedRoute.meta.key) ?? (matchedRoute && interpolatePath(routeProps.route, matchedRoute));
+  return typeof source === "function" ? source(routeProps.route) : source;
+};
+const wrapInKeepAlive = (props, children) => {
+  return { default: () => children };
+};
+function toArray(value) {
+  return Array.isArray(value) ? value : [value];
+}
+async function getRouteRules(url) {
+  {
+    const _routeRulesMatcher = toRouteMatcher(
+      createRouter$1({ routes: (/* @__PURE__ */ useRuntimeConfig()).nitro.routeRules })
+    );
+    return defu({}, ..._routeRulesMatcher.matchAll(url).reverse());
+  }
+}
+const _routes = [
+  {
+    name: "categories",
+    path: "/categories",
+    component: () => import('./categories-nNVPT40Q.mjs')
+  },
+  {
+    name: "checkout",
+    path: "/checkout",
+    component: () => import('./checkout-B_IEamxG.mjs')
+  },
+  {
+    name: "contact",
+    path: "/contact",
+    component: () => import('./contact-D1qamV10.mjs')
+  },
+  {
+    name: "index",
+    path: "/",
+    component: () => import('./index-NxxdEL6l.mjs')
+  },
+  {
+    name: "my-account",
+    path: "/my-account",
+    component: () => import('./index-DR6-lD7e.mjs')
+  },
+  {
+    name: "my-account-lost-password",
+    path: "/my-account/lost-password",
+    component: () => import('./lost-password-DF6ffqs8.mjs')
+  },
+  {
+    name: "order-summary",
+    path: "/order-summary",
+    component: () => import('./order-summary-BOPGk4h7.mjs')
+  },
+  {
+    name: "product-category-slug",
+    path: "/product-category/:slug()",
+    component: () => import('./_slug_-odhYM9Qz.mjs')
+  },
+  {
+    name: "product-slug",
+    path: "/product/:slug()",
+    component: () => import('./_slug_-CwK0iu0q.mjs')
+  },
+  {
+    name: "products",
+    path: "/products",
+    component: () => import('./products-D4E822Hu.mjs')
+  },
+  {
+    name: "wishlist",
+    path: "/wishlist",
+    component: () => import('./wishlist-TlRLCIW5.mjs')
+  },
+  {
+    name: "product-page-pager",
+    path: "/products/page/:pageNumber",
+    component: () => import('./products-D4E822Hu.mjs')
+  },
+  {
+    name: "product-category-page",
+    path: "/product-category/:categorySlug",
+    component: () => import('./_slug_-odhYM9Qz.mjs')
+  },
+  {
+    name: "product-category-page-pager",
+    path: "/product-category/:categorySlug/page/:pageNumber",
+    component: () => import('./_slug_-odhYM9Qz.mjs')
+  },
+  {
+    name: "order-received",
+    path: "/checkout/order-received/:orderId",
+    component: () => import('./order-summary-BOPGk4h7.mjs')
+  },
+  {
+    name: "order-summary",
+    path: "/order-summary/:orderId",
+    component: () => import('./order-summary-BOPGk4h7.mjs')
+  }
+];
+const _wrapIf = (component, props, slots) => {
+  props = props === true ? {} : props;
+  return { default: () => {
+    var _a;
+    return props ? h(component, props, slots) : (_a = slots.default) == null ? void 0 : _a.call(slots);
+  } };
+};
+function generateRouteKey(route) {
+  const source = (route == null ? void 0 : route.meta.key) ?? route.path.replace(/(:\w+)\([^)]+\)/g, "$1").replace(/(:\w+)[?+*]/g, "$1").replace(/:\w+/g, (r) => {
+    var _a;
+    return ((_a = route.params[r.slice(1)]) == null ? void 0 : _a.toString()) || "";
+  });
+  return typeof source === "function" ? source(route) : source;
+}
+function isChangingPage(to, from) {
+  if (to === from || from === START_LOCATION) {
+    return false;
+  }
+  if (generateRouteKey(to) !== generateRouteKey(from)) {
+    return true;
+  }
+  const areComponentsSame = to.matched.every(
+    (comp, index2) => {
+      var _a, _b;
+      return comp.components && comp.components.default === ((_b = (_a = from.matched[index2]) == null ? void 0 : _a.components) == null ? void 0 : _b.default);
+    }
+  );
+  if (areComponentsSame) {
+    return false;
+  }
+  return true;
+}
+const routerOptions0 = {
+  scrollBehavior(to, from, savedPosition) {
+    var _a;
+    const nuxtApp = useNuxtApp();
+    const behavior = ((_a = useRouter().options) == null ? void 0 : _a.scrollBehaviorType) ?? "auto";
+    let position = savedPosition || void 0;
+    const routeAllowsScrollToTop = typeof to.meta.scrollToTop === "function" ? to.meta.scrollToTop(to, from) : to.meta.scrollToTop;
+    if (!position && from && to && routeAllowsScrollToTop !== false && isChangingPage(to, from)) {
+      position = { left: 0, top: 0 };
+    }
+    if (to.path === from.path) {
+      if (from.hash && !to.hash) {
+        return { left: 0, top: 0 };
+      }
+      if (to.hash) {
+        return { el: to.hash, top: _getHashElementScrollMarginTop(to.hash), behavior };
+      }
+      return false;
+    }
+    const hasTransition = (route) => !!(route.meta.pageTransition ?? appPageTransition);
+    const hookToWait = hasTransition(from) && hasTransition(to) ? "page:transition:finish" : "page:finish";
+    return new Promise((resolve2) => {
+      nuxtApp.hooks.hookOnce(hookToWait, async () => {
+        await new Promise((resolve22) => setTimeout(resolve22, 0));
+        if (to.hash) {
+          position = { el: to.hash, top: _getHashElementScrollMarginTop(to.hash), behavior };
+        }
+        resolve2(position);
+      });
+    });
+  }
+};
+function _getHashElementScrollMarginTop(selector) {
+  try {
+    const elem = (void 0).querySelector(selector);
+    if (elem) {
+      return (Number.parseFloat(getComputedStyle(elem).scrollMarginTop) || 0) + (Number.parseFloat(getComputedStyle((void 0).documentElement).scrollPaddingTop) || 0);
+    }
+  } catch {
+  }
+  return 0;
+}
+const configRouterOptions = {
+  hashMode: false,
+  scrollBehaviorType: "auto"
+};
+const routerOptions = {
+  ...configRouterOptions,
+  ...routerOptions0
+};
+const validate = /* @__PURE__ */ defineNuxtRouteMiddleware(async (to) => {
+  var _a;
+  let __temp, __restore;
+  if (!((_a = to.meta) == null ? void 0 : _a.validate)) {
+    return;
+  }
+  const nuxtApp = useNuxtApp();
+  const router = useRouter();
+  const result = ([__temp, __restore] = executeAsync(() => Promise.resolve(to.meta.validate(to))), __temp = await __temp, __restore(), __temp);
+  if (result === true) {
+    return;
+  }
+  const error = createError({
+    statusCode: result && result.statusCode || 404,
+    statusMessage: result && result.statusMessage || `Page Not Found: ${to.fullPath}`,
+    data: {
+      path: to.fullPath
+    }
+  });
+  const unsub = router.beforeResolve((final) => {
+    unsub();
+    if (final === to) {
+      const unsub2 = router.afterEach(async () => {
+        unsub2();
+        await nuxtApp.runWithContext(() => showError(error));
+      });
+      return false;
+    }
+  });
+});
+const manifest_45route_45rule = /* @__PURE__ */ defineNuxtRouteMiddleware(async (to) => {
+  {
+    return;
+  }
+});
+const globalMiddleware = [
+  validate,
+  manifest_45route_45rule
+];
+const namedMiddleware = {};
+const plugin = /* @__PURE__ */ defineNuxtPlugin({
+  name: "nuxt:router",
+  enforce: "pre",
+  async setup(nuxtApp) {
+    var _a, _b, _c;
+    let __temp, __restore;
+    let routerBase = (/* @__PURE__ */ useRuntimeConfig()).app.baseURL;
+    if (routerOptions.hashMode && !routerBase.includes("#")) {
+      routerBase += "#";
+    }
+    const history = ((_a = routerOptions.history) == null ? void 0 : _a.call(routerOptions, routerBase)) ?? createMemoryHistory(routerBase);
+    const routes = routerOptions.routes ? ([__temp, __restore] = executeAsync(() => routerOptions.routes(_routes)), __temp = await __temp, __restore(), __temp) ?? _routes : _routes;
+    let startPosition;
+    const router = createRouter({
+      ...routerOptions,
+      scrollBehavior: (to, from, savedPosition) => {
+        if (from === START_LOCATION) {
+          startPosition = savedPosition;
+          return;
+        }
+        if (routerOptions.scrollBehavior) {
+          router.options.scrollBehavior = routerOptions.scrollBehavior;
+          if ("scrollRestoration" in (void 0).history) {
+            const unsub = router.beforeEach(() => {
+              unsub();
+              (void 0).history.scrollRestoration = "manual";
+            });
+          }
+          return routerOptions.scrollBehavior(to, START_LOCATION, startPosition || savedPosition);
+        }
+      },
+      history,
+      routes
+    });
+    nuxtApp.vueApp.use(router);
+    const previousRoute = shallowRef(router.currentRoute.value);
+    router.afterEach((_to, from) => {
+      previousRoute.value = from;
+    });
+    Object.defineProperty(nuxtApp.vueApp.config.globalProperties, "previousRoute", {
+      get: () => previousRoute.value
+    });
+    const initialURL = nuxtApp.ssrContext.url;
+    const _route = shallowRef(router.currentRoute.value);
+    const syncCurrentRoute = () => {
+      _route.value = router.currentRoute.value;
+    };
+    nuxtApp.hook("page:finish", syncCurrentRoute);
+    router.afterEach((to, from) => {
+      var _a2, _b2, _c2, _d;
+      if (((_b2 = (_a2 = to.matched[0]) == null ? void 0 : _a2.components) == null ? void 0 : _b2.default) === ((_d = (_c2 = from.matched[0]) == null ? void 0 : _c2.components) == null ? void 0 : _d.default)) {
+        syncCurrentRoute();
+      }
+    });
+    const route = {};
+    for (const key in _route.value) {
+      Object.defineProperty(route, key, {
+        get: () => _route.value[key],
+        enumerable: true
+      });
+    }
+    nuxtApp._route = shallowReactive(route);
+    nuxtApp._middleware = nuxtApp._middleware || {
+      global: [],
+      named: {}
+    };
+    useError();
+    if (!((_b = nuxtApp.ssrContext) == null ? void 0 : _b.islandContext)) {
+      router.afterEach(async (to, _from, failure) => {
+        delete nuxtApp._processingMiddleware;
+        if (failure) {
+          await nuxtApp.callHook("page:loading:end");
+        }
+        if ((failure == null ? void 0 : failure.type) === 4) {
+          return;
+        }
+        if (to.matched.length === 0) {
+          await nuxtApp.runWithContext(() => showError(createError$1({
+            statusCode: 404,
+            fatal: false,
+            statusMessage: `Page not found: ${to.fullPath}`,
+            data: {
+              path: to.fullPath
+            }
+          })));
+        } else if (to.redirectedFrom && to.fullPath !== initialURL) {
+          await nuxtApp.runWithContext(() => navigateTo(to.fullPath || "/"));
+        }
+      });
+    }
+    try {
+      if (true) {
+        ;
+        [__temp, __restore] = executeAsync(() => router.push(initialURL)), await __temp, __restore();
+        ;
+      }
+      ;
+      [__temp, __restore] = executeAsync(() => router.isReady()), await __temp, __restore();
+      ;
+    } catch (error2) {
+      [__temp, __restore] = executeAsync(() => nuxtApp.runWithContext(() => showError(error2))), await __temp, __restore();
+    }
+    const resolvedInitialRoute = router.currentRoute.value;
+    syncCurrentRoute();
+    if ((_c = nuxtApp.ssrContext) == null ? void 0 : _c.islandContext) {
+      return { provide: { router } };
+    }
+    const initialLayout = nuxtApp.payload.state._layout;
+    router.beforeEach(async (to, from) => {
+      var _a2, _b2;
+      await nuxtApp.callHook("page:loading:start");
+      to.meta = reactive(to.meta);
+      if (nuxtApp.isHydrating && initialLayout && !isReadonly(to.meta.layout)) {
+        to.meta.layout = initialLayout;
+      }
+      nuxtApp._processingMiddleware = true;
+      if (!((_a2 = nuxtApp.ssrContext) == null ? void 0 : _a2.islandContext)) {
+        const middlewareEntries = /* @__PURE__ */ new Set([...globalMiddleware, ...nuxtApp._middleware.global]);
+        for (const component of to.matched) {
+          const componentMiddleware = component.meta.middleware;
+          if (!componentMiddleware) {
+            continue;
+          }
+          for (const entry2 of toArray(componentMiddleware)) {
+            middlewareEntries.add(entry2);
+          }
+        }
+        {
+          const routeRules = await nuxtApp.runWithContext(() => getRouteRules(to.path));
+          if (routeRules.appMiddleware) {
+            for (const key in routeRules.appMiddleware) {
+              if (routeRules.appMiddleware[key]) {
+                middlewareEntries.add(key);
+              } else {
+                middlewareEntries.delete(key);
+              }
+            }
+          }
+        }
+        for (const entry2 of middlewareEntries) {
+          const middleware = typeof entry2 === "string" ? nuxtApp._middleware.named[entry2] || await ((_b2 = namedMiddleware[entry2]) == null ? void 0 : _b2.call(namedMiddleware).then((r) => r.default || r)) : entry2;
+          if (!middleware) {
+            throw new Error(`Unknown route middleware: '${entry2}'.`);
+          }
+          const result = await nuxtApp.runWithContext(() => middleware(to, from));
+          {
+            if (result === false || result instanceof Error) {
+              const error2 = result || createError$1({
+                statusCode: 404,
+                statusMessage: `Page Not Found: ${initialURL}`
+              });
+              await nuxtApp.runWithContext(() => showError(error2));
+              return false;
+            }
+          }
+          if (result === true) {
+            continue;
+          }
+          if (result || result === false) {
+            return result;
+          }
+        }
+      }
+    });
+    router.onError(async () => {
+      delete nuxtApp._processingMiddleware;
+      await nuxtApp.callHook("page:loading:end");
+    });
+    nuxtApp.hooks.hookOnce("app:created", async () => {
+      try {
+        if ("name" in resolvedInitialRoute) {
+          resolvedInitialRoute.name = void 0;
+        }
+        await router.replace({
+          ...resolvedInitialRoute,
+          force: true
+        });
+        router.options.scrollBehavior = routerOptions.scrollBehavior;
+      } catch (error2) {
+        await nuxtApp.runWithContext(() => showError(error2));
+      }
+    });
+    return { provide: { router } };
+  }
+});
+function definePayloadReducer(name2, reduce) {
+  {
+    useNuxtApp().ssrContext._payloadReducers[name2] = reduce;
+  }
+}
+const reducers = [
+  ["NuxtError", (data) => isNuxtError(data) && data.toJSON()],
+  ["EmptyShallowRef", (data) => isRef(data) && isShallow(data) && !data.value && (typeof data.value === "bigint" ? "0n" : JSON.stringify(data.value) || "_")],
+  ["EmptyRef", (data) => isRef(data) && !data.value && (typeof data.value === "bigint" ? "0n" : JSON.stringify(data.value) || "_")],
+  ["ShallowRef", (data) => isRef(data) && isShallow(data) && data.value],
+  ["ShallowReactive", (data) => isReactive(data) && isShallow(data) && toRaw(data)],
+  ["Ref", (data) => isRef(data) && data.value],
+  ["Reactive", (data) => isReactive(data) && toRaw(data)]
+];
+const revive_payload_server_eJ33V7gbc6 = /* @__PURE__ */ defineNuxtPlugin({
+  name: "nuxt:revive-payload:server",
+  setup() {
+    for (const [reducer, fn] of reducers) {
+      definePayloadReducer(reducer, fn);
+    }
+  }
+});
+const LazyIcon = defineAsyncComponent(() => Promise.resolve().then(function() {
+  return index;
+}).then((r) => r["default"] || r.default || r));
+const lazyGlobalComponents = [
+  ["Icon", LazyIcon]
+];
+const components_plugin_zlvi6dcIsi = /* @__PURE__ */ defineNuxtPlugin({
+  name: "nuxt:global-components",
+  setup(nuxtApp) {
+    for (const [name2, component] of lazyGlobalComponents) {
+      nuxtApp.vueApp.component(name2, component);
+      nuxtApp.vueApp.component("Lazy" + name2, component);
+    }
+  }
+});
+/*!
+  * shared v9.14.1
+  * (c) 2024 kazuya kawaguchi
+  * Released under the MIT License.
+  */
+const inBrowser = false;
+const makeSymbol = (name2, shareable = false) => !shareable ? Symbol(name2) : Symbol.for(name2);
+const generateFormatCacheKey = (locale, key, source) => friendlyJSONstringify({ l: locale, k: key, s: source });
+const friendlyJSONstringify = (json) => JSON.stringify(json).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029").replace(/\u0027/g, "\\u0027");
+const isNumber = (val) => typeof val === "number" && isFinite(val);
+const isDate = (val) => toTypeString(val) === "[object Date]";
+const isRegExp = (val) => toTypeString(val) === "[object RegExp]";
+const isEmptyObject = (val) => isPlainObject(val) && Object.keys(val).length === 0;
+const assign = Object.assign;
+function escapeHtml(rawText) {
+  return rawText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+function hasOwn(obj, key) {
+  return hasOwnProperty.call(obj, key);
+}
+const isArray = Array.isArray;
+const isFunction = (val) => typeof val === "function";
+const isString = (val) => typeof val === "string";
+const isBoolean = (val) => typeof val === "boolean";
+const isSymbol = (val) => typeof val === "symbol";
+const isObject = (val) => val !== null && typeof val === "object";
+const isPromise = (val) => {
+  return isObject(val) && isFunction(val.then) && isFunction(val.catch);
+};
+const objectToString = Object.prototype.toString;
+const toTypeString = (value) => objectToString.call(value);
+const isPlainObject = (val) => {
+  if (!isObject(val))
+    return false;
+  const proto = Object.getPrototypeOf(val);
+  return proto === null || proto.constructor === Object;
+};
+const toDisplayString = (val) => {
+  return val == null ? "" : isArray(val) || isPlainObject(val) && val.toString === objectToString ? JSON.stringify(val, null, 2) : String(val);
+};
+function join(items, separator = "") {
+  return items.reduce((str, item, index2) => index2 === 0 ? str + item : str + separator + item, "");
+}
+function incrementer(code2) {
+  let current = code2;
+  return () => ++current;
+}
+function warn(msg, err) {
+  if (typeof console !== "undefined") {
+    console.warn(`[intlify] ` + msg);
+    if (err) {
+      console.warn(err.stack);
+    }
+  }
+}
+const isNotObjectOrIsArray = (val) => !isObject(val) || isArray(val);
+function deepCopy(src, des) {
+  if (isNotObjectOrIsArray(src) || isNotObjectOrIsArray(des)) {
+    throw new Error("Invalid value");
+  }
+  const stack = [{ src, des }];
+  while (stack.length) {
+    const { src: src2, des: des2 } = stack.pop();
+    Object.keys(src2).forEach((key) => {
+      if (isObject(src2[key]) && !isObject(des2[key])) {
+        des2[key] = Array.isArray(src2[key]) ? [] : {};
+      }
+      if (isNotObjectOrIsArray(des2[key]) || isNotObjectOrIsArray(src2[key])) {
+        des2[key] = src2[key];
+      } else {
+        stack.push({ src: src2[key], des: des2[key] });
+      }
+    });
+  }
+}
+function isHTTPS(req, trustProxy = true) {
+  const _xForwardedProto = trustProxy && req.headers ? req.headers["x-forwarded-proto"] : void 0;
+  const protoCheck = typeof _xForwardedProto === "string" ? _xForwardedProto.includes("https") : void 0;
+  if (protoCheck) {
+    return true;
+  }
+  const _encrypted = req.connection ? req.connection.encrypted : void 0;
+  const encryptedCheck = _encrypted !== void 0 ? _encrypted === true : void 0;
+  if (encryptedCheck) {
+    return true;
+  }
+  if (protoCheck === void 0 && encryptedCheck === void 0) {
+    return void 0;
+  }
+  return false;
+}
+const resource = {
+  "messages": {
+    "general": {
+      "viewAll": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Összes megtekintése" } },
+      "share": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Megosztás" } },
+      "date": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Dátum" } },
+      "langCode": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "hu-HU" } },
+      "status": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Állapot" } },
+      "paymentMethod": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Fizetési mód" } },
+      "clearFilters": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Szűrők törlése" } },
+      "up": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Fel" } },
+      "please": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kérem" } },
+      "shipping": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Szállítás" } },
+      "shippingDetails": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Szállítási adatok" } },
+      "shippingSelect": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Szállítási mód kiválasztása" } },
+      "tax": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Adó" } },
+      "myDetails": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Adataim" } },
+      "home": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kezdőlap" } },
+      "allProducts": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Termékek" } },
+      "product": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Termék" } },
+      "contact": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kapcsolat" } },
+      "menu": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Menü" } },
+      "color": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Szín" } },
+      "choose": { "t": 0, "b": { "t": 1, "c": [{ "t": 2, "i": [{ "t": 3 }], "s": "Választás" }, { "t": 2, "i": [{ "t": 3 }], "s": "Választások" }] } },
+      "basedOn": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Alapján" } },
+      "apply": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Alkalmazás" } },
+      "latest": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Legújabb" } },
+      "alphabetically": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Betűrendben" } },
+      "clear": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Törlés" } },
+      "optional": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Opcionális" } },
+      "downloads": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Letöltések" } },
+      "download": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Letöltés" } },
+      "goHome": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Vissza a kezdőlapra" } },
+      "newsletter": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Hírlevél" } },
+      "customerService": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Ügyfélszolgálat" } },
+      "processing": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Feldolgozás" } },
+      "readOnly": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Csak olvasható" } }
+    },
+    "account": {
+      "changePassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Jelszó módosítása" } },
+      "currentPassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Jelenlegi jelszó" } },
+      "password": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Jelszó" } },
+      "newPassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Új jelszó" } },
+      "confirmNewPassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Új jelszó megerősítése" } },
+      "updatePassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Jelszó frissítése" } },
+      "forgotPassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Elfelejtette jelszavát?" } },
+      "username": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Felhasználónév" } },
+      "emailOrUsername": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "E-mail vagy felhasználónév" } },
+      "login": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Bejelentkezés" } },
+      "logout": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kijelentkezés" } },
+      "backToLogin": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Vissza a bejelentkezéshez" } },
+      "enterEmailOrUsernameForReset": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kérjük, adja meg e-mail címét vagy felhasználónevét, és küldünk egy linket a jelszó visszaállításához." } },
+      "ifRegistered": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Ha e-mail címe regisztrálva van nálunk, kapni fog egy e-mailt a jelszó visszaállítására szolgáló linkkel." } },
+      "requestNewLink": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kérjen új linket" } },
+      "resetPassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Jelszó visszaállítása" } },
+      "sendPasswordResetEmail": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Jelszó-visszaállító e-mail küldése" } },
+      "register": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Regisztráció" } },
+      "accountRegister": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Regisztráció" } },
+      "accountLogin": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "bejelentkezés" } },
+      "noAccount": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Nincs még fiókja?" } },
+      "hasAccount": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Már van fiókja?" } },
+      "accountCreated": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Fiókját létrehoztuk." } },
+      "myAccount": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Fiókom" } },
+      "loginToAccount": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Bejelentkezés a fiókjába" } },
+      "loggingIn": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Bejelentkezés..." } },
+      "personalInfo": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Személyes adatok" } },
+      "updating": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Frissítés" } },
+      "updateDetails": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Adatok frissítése" } },
+      "updateSuccess": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Sikeres frissítés" } },
+      "failed": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Frissítés sikertelen" } }
+    },
+    "shop": {
+      "shopByCategory": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Vásárlás kategória szerint" } },
+      "popularProducts": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Népszerű termékek" } },
+      "availability": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Elérhetőség" } },
+      "inStock": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Készleten" } },
+      "outOfStock": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Elfogyott" } },
+      "onBackorder": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Előrendelhető" } },
+      "sku": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Cikkszám" } },
+      "price": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Ár" } },
+      "category": { "t": 0, "b": { "t": 1, "c": [{ "t": 2, "i": [{ "t": 3 }], "s": "Kategória" }, { "t": 2, "i": [{ "t": 3 }], "s": "Kategóriák" }] } },
+      "youMayLike": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Ezek is érdekelhetik" } },
+      "wishlist": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kívánságlista" } },
+      "wishlistRemove": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Eltávolítás a kívánságlistáról" } },
+      "wishlistAdd": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Hozzáadás a kívánságlistához" } },
+      "wishlistNoItems": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "A kívánságlistája üres" } },
+      "addToCart": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kosárba" } },
+      "adding": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Hozzáadás..." } },
+      "productDescription": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Leírás" } },
+      "productImage": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Termék képe" } },
+      "productBestSellers": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Legkelendőbb termékek" } },
+      "newArrivals": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Új termékek" } },
+      "onSale": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Akciós" } },
+      "reviews": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Értékelések" } },
+      "customerReviews": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Vásárlói értékelések" } },
+      "noReviews": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Még nincs értékelés." } },
+      "writeReview": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Írjon értékelést" } },
+      "close": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Bezárás" } },
+      "rateReview": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Hogyan értékelné a tapasztalatait ezzel a termékkel? Törekszünk az 5 csillagos élményre" } },
+      "rateContent": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Milyen volt a tapasztalata?" } },
+      "rateEmail": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Az Ön e-mail címe" } },
+      "submit": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Beküldés" } },
+      "order": { "t": 0, "b": { "t": 1, "c": [{ "t": 2, "i": [{ "t": 3 }], "s": "Rendelés" }, { "t": 2, "i": [{ "t": 3 }], "s": "Rendelések" }] } },
+      "orderSummary": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Rendelés összegzése" } },
+      "orderReceived": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Rendelés beérkezett" } },
+      "orderNote": { "t": 0, "b": { "t": 1, "c": [{ "t": 2, "i": [{ "t": 3 }], "s": "Rendelési megjegyzés" }, { "t": 2, "i": [{ "t": 3 }], "s": "Rendelési megjegyzések" }] } },
+      "orderNotePlaceholder": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Megjegyzések a rendeléshez, pl. speciális kézbesítési utasítások." } },
+      "orderThanks": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Köszönjük a rendelését. E-mailben elküldjük Önnek a rendelés részleteit." } },
+      "orderHistory": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Rendelési előzmények" } },
+      "placeOrder": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Rendelés leadása" } },
+      "total": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Összesen" } },
+      "subtotal": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Részösszeg" } },
+      "rating": { "t": 0, "b": { "t": 1, "c": [{ "t": 2, "i": [{ "t": 3 }], "s": "Értékelés" }, { "t": 2, "i": [{ "t": 3 }], "s": "Értékelések" }] } },
+      "cart": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kosár" } },
+      "cartEmpty": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "A kosara üres." } },
+      "addProductsInYourCart": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kérjük, adjon termékeket a kosarához." } },
+      "browseOurProducts": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Termékek böngészése" } },
+      "checkout": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Pénztár" } },
+      "checkoutButton": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Fizetés" } },
+      "discount": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kedvezmény" } },
+      "giftCards": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Ajándékkártyák" } },
+      "searchProducts": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Termékek keresése..." } },
+      "couponCode": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Kuponkód" } },
+      "downloadsRemaining": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Hátralévő letöltések" } },
+      "expires": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Lejár" } },
+      "productNotFound": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Termék nem található" } },
+      "productResultCount": {
+        "showing": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Megjelenítve" } },
+        "to": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "-" } },
+        "of": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "/" } }
+      },
+      "noProductsFound": {
+        "title": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Nem található termék" } },
+        "subText": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Próbálja módosítani a keresést vagy a szűrőket a kívánt termék megtalálásához." } },
+        "clearFiltersAndSearch": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Összes szűrő és keresés törlése" } }
+      }
+    },
+    "billing": {
+      "billing": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Számlázás" } },
+      "billingDetails": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Számlázási adatok" } },
+      "firstName": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Keresztnév" } },
+      "lastName": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Vezetéknév" } },
+      "address1": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Cím 1" } },
+      "address2": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Cím 2" } },
+      "city": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Város" } },
+      "state": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Megye" } },
+      "zip": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Irányítószám" } },
+      "country": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Ország" } },
+      "countryCode": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Országkód" } },
+      "phone": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Telefon" } },
+      "email": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "E-mail" } },
+      "paymentOptions": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Fizetési lehetőségek" } },
+      "creditCard": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Bankkártya" } },
+      "cashOnDelivery": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Utánvét" } },
+      "differentAddress": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Szállítás másik címre?" } }
+    },
+    "error": {
+      "invalidUsername": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Nem található fiók ezzel a felhasználónévvel. Regisztráljon új fiókot." } },
+      "incorrectPassword": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Helytelen jelszó. Kérjük, próbálja újra." } },
+      "passwordMismatch": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "A jelszavak nem egyeznek. Kérjük, próbálja újra." } },
+      "invalidPasswordResetLink": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "A jelszó-visszaállítási link érvénytelen." } },
+      "general": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Valami hiba történt" } },
+      "noOrder": { "t": 0, "b": { "t": 2, "i": [{ "t": 3 }], "s": "Nem találtuk a rendelését. Kérjük, próbálja újra később." } }
+    }
+  }
+};
+const localeCodes = [
+  "hu_HU"
+];
+const localeLoaders = {
+  "hu_HU": [{ key: "../../../../woonuxt_base/app/locales/hu-HU.json", load: () => Promise.resolve(resource), cache: true }]
+};
+const vueI18nConfigs = [];
+const normalizedLocales = [
+  {
+    "code": "hu_HU",
+    "name": "Magyar HU",
+    "files": [
+      {
+        "path": "/Applications/XAMPP/xamppfiles/htdocs/ acarpartsWoonuxt/woonuxt_base/app/locales/hu-HU.json"
+      }
+    ]
+  }
+];
+const NUXT_I18N_MODULE_ID = "@nuxtjs/i18n";
+const parallelPlugin = false;
+const isSSG = false;
+const DEFAULT_DYNAMIC_PARAMS_KEY = "nuxtI18n";
+const DEFAULT_COOKIE_KEY = "i18n_redirected";
+const SWITCH_LOCALE_PATH_LINK_IDENTIFIER = "nuxt-i18n-slp";
+function getNormalizedLocales(locales) {
+  locales = locales || [];
+  const normalized = [];
+  for (const locale of locales) {
+    if (isString(locale)) {
+      normalized.push({ code: locale });
+    } else {
+      normalized.push(locale);
+    }
+  }
+  return normalized;
+}
+function isI18nInstance(i18n) {
+  return i18n != null && "global" in i18n && "mode" in i18n;
+}
+function isComposer(target) {
+  return target != null && !("__composer" in target) && "locale" in target && isRef(target.locale);
+}
+function isVueI18n(target) {
+  return target != null && "__composer" in target;
+}
+function getI18nTarget(i18n) {
+  return isI18nInstance(i18n) ? i18n.global : i18n;
+}
+function getComposer$3(i18n) {
+  const target = getI18nTarget(i18n);
+  if (isComposer(target)) return target;
+  if (isVueI18n(target)) return target.__composer;
+  return target;
+}
+function getLocale$1(i18n) {
+  return unref(getI18nTarget(i18n).locale);
+}
+function getLocales(i18n) {
+  return unref(getI18nTarget(i18n).locales);
+}
+function getLocaleCodes(i18n) {
+  return unref(getI18nTarget(i18n).localeCodes);
+}
+function setLocale(i18n, locale) {
+  const target = getI18nTarget(i18n);
+  if (isRef(target.locale)) {
+    target.locale.value = locale;
+  } else {
+    target.locale = locale;
+  }
+}
+function getRouteName(routeName) {
+  if (isString(routeName)) return routeName;
+  if (isSymbol(routeName)) return routeName.toString();
+  return "(null)";
+}
+function getLocaleRouteName(routeName, locale, {
+  defaultLocale,
+  strategy,
+  routesNameSeparator,
+  defaultLocaleRouteNameSuffix,
+  differentDomains
+}) {
+  const localizedRoutes = strategy !== "no_prefix" || differentDomains;
+  let name2 = getRouteName(routeName) + (localizedRoutes ? routesNameSeparator + locale : "");
+  if (locale === defaultLocale && strategy === "prefix_and_default") {
+    name2 += routesNameSeparator + defaultLocaleRouteNameSuffix;
+  }
+  return name2;
+}
+function resolveBaseUrl(baseUrl, context) {
+  if (isFunction(baseUrl)) {
+    return baseUrl(context);
+  }
+  return baseUrl;
+}
+function matchBrowserLocale(locales, browserLocales) {
+  const matchedLocales = [];
+  for (const [index2, browserCode] of browserLocales.entries()) {
+    const matchedLocale = locales.find((l) => l.language.toLowerCase() === browserCode.toLowerCase());
+    if (matchedLocale) {
+      matchedLocales.push({ code: matchedLocale.code, score: 1 - index2 / browserLocales.length });
+      break;
+    }
+  }
+  for (const [index2, browserCode] of browserLocales.entries()) {
+    const languageCode = browserCode.split("-")[0].toLowerCase();
+    const matchedLocale = locales.find((l) => l.language.split("-")[0].toLowerCase() === languageCode);
+    if (matchedLocale) {
+      matchedLocales.push({ code: matchedLocale.code, score: 0.999 - index2 / browserLocales.length });
+      break;
+    }
+  }
+  return matchedLocales;
+}
+const DefaultBrowserLocaleMatcher = matchBrowserLocale;
+function compareBrowserLocale(a, b2) {
+  if (a.score === b2.score) {
+    return b2.code.length - a.code.length;
+  }
+  return b2.score - a.score;
+}
+const DefaultBrowerLocaleComparer = compareBrowserLocale;
+function findBrowserLocale(locales, browserLocales, { matcher = DefaultBrowserLocaleMatcher, comparer = DefaultBrowerLocaleComparer } = {}) {
+  const normalizedLocales2 = [];
+  for (const l of locales) {
+    const { code: code2 } = l;
+    const language = l.language || code2;
+    normalizedLocales2.push({ code: code2, language });
+  }
+  const matchedLocales = matcher(normalizedLocales2, browserLocales);
+  if (matchedLocales.length > 1) {
+    matchedLocales.sort(comparer);
+  }
+  return matchedLocales.length ? matchedLocales[0].code : "";
+}
+function getLocalesRegex(localeCodes2) {
+  return new RegExp(`^/(${localeCodes2.join("|")})(?:/|$)`, "i");
+}
+const cacheMessages = /* @__PURE__ */ new Map();
+async function loadVueI18nOptions(vueI18nConfigs2, nuxt) {
+  const vueI18nOptions = { messages: {} };
+  for (const configFile of vueI18nConfigs2) {
+    const { default: resolver } = await configFile();
+    const resolved = isFunction(resolver) ? await nuxt.runWithContext(async () => await resolver()) : resolver;
+    deepCopy(resolved, vueI18nOptions);
+  }
+  return vueI18nOptions;
+}
+function makeFallbackLocaleCodes(fallback, locales) {
+  let fallbackLocales = [];
+  if (isArray(fallback)) {
+    fallbackLocales = fallback;
+  } else if (isObject(fallback)) {
+    const targets = [...locales, "default"];
+    for (const locale of targets) {
+      if (fallback[locale]) {
+        fallbackLocales = [...fallbackLocales, ...fallback[locale].filter(Boolean)];
+      }
+    }
+  } else if (isString(fallback) && locales.every((locale) => locale !== fallback)) {
+    fallbackLocales.push(fallback);
+  }
+  return fallbackLocales;
+}
+async function loadInitialMessages(messages, localeLoaders2, options) {
+  const { defaultLocale, initialLocale, localeCodes: localeCodes2, fallbackLocale, lazy } = options;
+  if (lazy && fallbackLocale) {
+    const fallbackLocales = makeFallbackLocaleCodes(fallbackLocale, [defaultLocale, initialLocale]);
+    await Promise.all(fallbackLocales.map((locale) => loadAndSetLocaleMessages(locale, localeLoaders2, messages)));
+  }
+  const locales = lazy ? [...(/* @__PURE__ */ new Set()).add(defaultLocale).add(initialLocale)] : localeCodes2;
+  await Promise.all(locales.map((locale) => loadAndSetLocaleMessages(locale, localeLoaders2, messages)));
+  return messages;
+}
+async function loadMessage(locale, { key, load }) {
+  let message = null;
+  try {
+    const getter = await load().then((r) => r.default || r);
+    if (isFunction(getter)) {
+      message = await getter(locale);
+    } else {
+      message = getter;
+      if (message != null && cacheMessages) {
+        cacheMessages.set(key, message);
+      }
+    }
+  } catch (e) {
+    console.error("Failed locale loading: " + e.message);
+  }
+  return message;
+}
+async function loadLocale(locale, localeLoaders2, setter) {
+  const loaders = localeLoaders2[locale];
+  if (loaders == null) {
+    console.warn("Could not find messages for locale code: " + locale);
+    return;
+  }
+  const targetMessage = {};
+  for (const loader of loaders) {
+    let message = null;
+    if (cacheMessages && cacheMessages.has(loader.key) && loader.cache) {
+      message = cacheMessages.get(loader.key);
+    } else {
+      message = await loadMessage(locale, loader);
+    }
+    if (message != null) {
+      deepCopy(message, targetMessage);
+    }
+  }
+  setter(locale, targetMessage);
+}
+async function loadAndSetLocaleMessages(locale, localeLoaders2, messages) {
+  const setter = (locale2, message) => {
+    const base = messages[locale2] || {};
+    deepCopy(message, base);
+    messages[locale2] = base;
+  };
+  await loadLocale(locale, localeLoaders2, setter);
+}
+function split(str, index2) {
+  const result = [str.slice(0, index2), str.slice(index2)];
+  return result;
+}
+function routeToObject(route) {
+  const { fullPath, query, hash: hash2, name: name2, path, params, meta, redirectedFrom, matched } = route;
+  return {
+    fullPath,
+    params,
+    query,
+    hash: hash2,
+    name: name2,
+    path,
+    meta,
+    matched,
+    redirectedFrom
+  };
+}
+function resolve({ router }, route, strategy, locale) {
+  var _a, _b;
+  if (strategy !== "prefix") {
+    return router.resolve(route);
+  }
+  const [rootSlash, restPath] = split(route.path, 1);
+  const targetPath = `${rootSlash}${locale}${restPath === "" ? restPath : `/${restPath}`}`;
+  const _route = (_b = (_a = router.options) == null ? void 0 : _a.routes) == null ? void 0 : _b.find((r) => r.path === targetPath);
+  if (_route == null) {
+    return route;
+  }
+  const _resolvableRoute = assign({}, route, _route);
+  _resolvableRoute.path = targetPath;
+  return router.resolve(_resolvableRoute);
+}
+const RESOLVED_PREFIXED = /* @__PURE__ */ new Set(["prefix_and_default", "prefix_except_default"]);
+function prefixable(options) {
+  const { currentLocale, defaultLocale, strategy } = options;
+  const isDefaultLocale = currentLocale === defaultLocale;
+  return !(isDefaultLocale && RESOLVED_PREFIXED.has(strategy)) && // no prefix for any language
+  !(strategy === "no_prefix");
+}
+const DefaultPrefixable = prefixable;
+function getRouteBaseName(common, givenRoute) {
+  const { routesNameSeparator } = common.runtimeConfig.public.i18n;
+  const route = unref(givenRoute);
+  if (route == null || !route.name) {
+    return;
+  }
+  const name2 = getRouteName(route.name);
+  return name2.split(routesNameSeparator)[0];
+}
+function localePath(common, route, locale) {
+  var _a;
+  if (typeof route === "string" && hasProtocol(route, { acceptRelative: true })) {
+    return route;
+  }
+  const localizedRoute = resolveRoute(common, route, locale);
+  return localizedRoute == null ? "" : ((_a = localizedRoute.redirectedFrom) == null ? void 0 : _a.fullPath) || localizedRoute.fullPath;
+}
+function localeRoute(common, route, locale) {
+  const resolved = resolveRoute(common, route, locale);
+  return resolved ?? void 0;
+}
+function localeLocation(common, route, locale) {
+  const resolved = resolveRoute(common, route, locale);
+  return resolved ?? void 0;
+}
+function resolveRoute(common, route, locale) {
+  const { router, i18n } = common;
+  const _locale = locale || getLocale$1(i18n);
+  const { defaultLocale, strategy, trailingSlash } = common.runtimeConfig.public.i18n;
+  const prefixable2 = extendPrefixable(common.runtimeConfig);
+  let _route;
+  if (isString(route)) {
+    if (route[0] === "/") {
+      const { pathname: path, search, hash: hash2 } = parsePath(route);
+      const query = parseQuery(search);
+      _route = { path, query, hash: hash2 };
+    } else {
+      _route = { name: route };
+    }
+  } else {
+    _route = route;
+  }
+  let localizedRoute = assign({}, _route);
+  const isRouteLocationPathRaw = (val) => "path" in val && !!val.path && !("name" in val);
+  if (isRouteLocationPathRaw(localizedRoute)) {
+    const resolvedRoute = resolve(common, localizedRoute, strategy, _locale);
+    const resolvedRouteName = getRouteBaseName(common, resolvedRoute);
+    if (isString(resolvedRouteName)) {
+      localizedRoute = {
+        name: getLocaleRouteName(resolvedRouteName, _locale, common.runtimeConfig.public.i18n),
+        // @ts-ignore
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- FIXME
+        params: resolvedRoute.params,
+        query: resolvedRoute.query,
+        hash: resolvedRoute.hash
+      };
+      localizedRoute.state = resolvedRoute.state;
+    } else {
+      if (prefixable2({ currentLocale: _locale, defaultLocale, strategy })) {
+        localizedRoute.path = `/${_locale}${localizedRoute.path}`;
+      }
+      localizedRoute.path = trailingSlash ? withTrailingSlash(localizedRoute.path, true) : withoutTrailingSlash(localizedRoute.path, true);
+    }
+  } else {
+    if (!localizedRoute.name && !("path" in localizedRoute)) {
+      localizedRoute.name = getRouteBaseName(common, router.currentRoute.value);
+    }
+    localizedRoute.name = getLocaleRouteName(localizedRoute.name, _locale, common.runtimeConfig.public.i18n);
+  }
+  try {
+    const resolvedRoute = router.resolve(localizedRoute);
+    if (resolvedRoute.name) {
+      return resolvedRoute;
+    }
+    return router.resolve(route);
+  } catch (e) {
+    if (typeof e === "object" && "type" in e && e.type === 1) {
+      return null;
+    }
+  }
+}
+const DefaultSwitchLocalePathIntercepter = (path) => path;
+function getLocalizableMetaFromDynamicParams(common, route) {
+  var _a;
+  if (common.runtimeConfig.public.i18n.experimental.switchLocalePathLinkSSR) {
+    return unref(common.metaState.value);
+  }
+  const meta = route.meta || {};
+  return ((_a = unref(meta)) == null ? void 0 : _a[DEFAULT_DYNAMIC_PARAMS_KEY]) || {};
+}
+function switchLocalePath(common, locale, _route) {
+  const route = _route ?? common.router.currentRoute.value;
+  const name2 = getRouteBaseName(common, route);
+  if (!name2) {
+    return "";
+  }
+  const switchLocalePathIntercepter = extendSwitchLocalePathIntercepter(common.runtimeConfig);
+  const routeCopy = routeToObject(route);
+  const resolvedParams = getLocalizableMetaFromDynamicParams(common, route)[locale];
+  const baseRoute = { ...routeCopy, name: name2, params: { ...routeCopy.params, ...resolvedParams } };
+  const path = localePath(common, baseRoute, locale);
+  return switchLocalePathIntercepter(path, locale);
+}
+function localeHead(common, {
+  addDirAttribute = false,
+  addSeoAttributes: seoAttributes = true,
+  identifierAttribute: idAttribute = "hid"
+}) {
+  const { defaultDirection } = (/* @__PURE__ */ useRuntimeConfig()).public.i18n;
+  const i18n = getComposer$3(common.i18n);
+  const metaObject = {
+    htmlAttrs: {},
+    link: [],
+    meta: []
+  };
+  if (unref(i18n.locales) == null || unref(i18n.baseUrl) == null) {
+    return metaObject;
+  }
+  const locale = getLocale$1(common.i18n);
+  const locales = getLocales(common.i18n);
+  const currentLocale = getNormalizedLocales(locales).find((l) => l.code === locale) || {
+    code: locale
+  };
+  const currentLanguage = currentLocale.language;
+  const currentDir = currentLocale.dir || defaultDirection;
+  if (addDirAttribute) {
+    metaObject.htmlAttrs.dir = currentDir;
+  }
+  if (seoAttributes && locale && unref(i18n.locales)) {
+    if (currentLanguage) {
+      metaObject.htmlAttrs.lang = currentLanguage;
+    }
+    metaObject.link.push(
+      ...getHreflangLinks(common, unref(locales), idAttribute),
+      ...getCanonicalLink(common, idAttribute, seoAttributes)
+    );
+    metaObject.meta.push(
+      ...getOgUrl(common, idAttribute, seoAttributes),
+      ...getCurrentOgLocale(currentLocale, currentLanguage, idAttribute),
+      ...getAlternateOgLocales(unref(locales), currentLanguage, idAttribute)
+    );
+  }
+  return metaObject;
+}
+function getBaseUrl() {
+  const nuxtApp = useNuxtApp();
+  const i18n = getComposer$3(nuxtApp.$i18n);
+  return joinURL(unref(i18n.baseUrl), nuxtApp.$config.app.baseURL);
+}
+function getHreflangLinks(common, locales, idAttribute) {
+  const baseUrl = getBaseUrl();
+  const { defaultLocale, strategy } = (/* @__PURE__ */ useRuntimeConfig()).public.i18n;
+  const links = [];
+  if (strategy === "no_prefix") return links;
+  const localeMap = /* @__PURE__ */ new Map();
+  for (const locale of locales) {
+    const localeLanguage = locale.language;
+    if (!localeLanguage) {
+      console.warn("Locale `language` ISO code is required to generate alternate link");
+      continue;
+    }
+    const [language, region] = localeLanguage.split("-");
+    if (language && region && (locale.isCatchallLocale || !localeMap.has(language))) {
+      localeMap.set(language, locale);
+    }
+    localeMap.set(localeLanguage, locale);
+  }
+  for (const [language, mapLocale] of localeMap.entries()) {
+    const localePath2 = switchLocalePath(common, mapLocale.code);
+    if (localePath2) {
+      links.push({
+        [idAttribute]: `i18n-alt-${language}`,
+        rel: "alternate",
+        href: toAbsoluteUrl(localePath2, baseUrl),
+        hreflang: language
+      });
+    }
+  }
+  if (defaultLocale) {
+    const localePath2 = switchLocalePath(common, defaultLocale);
+    if (localePath2) {
+      links.push({
+        [idAttribute]: "i18n-xd",
+        rel: "alternate",
+        href: toAbsoluteUrl(localePath2, baseUrl),
+        hreflang: "x-default"
+      });
+    }
+  }
+  return links;
+}
+function getCanonicalUrl(common, baseUrl, seoAttributes) {
+  const route = common.router.currentRoute.value;
+  const currentRoute = localeRoute(common, {
+    ...route,
+    path: void 0,
+    name: getRouteBaseName(common, route)
+  });
+  if (!currentRoute) return "";
+  let href = toAbsoluteUrl(currentRoute.path, baseUrl);
+  const canonicalQueries = isObject(seoAttributes) && seoAttributes.canonicalQueries || [];
+  const currentRouteQueryParams = currentRoute.query;
+  const params = new URLSearchParams();
+  for (const queryParamName of canonicalQueries) {
+    if (queryParamName in currentRouteQueryParams) {
+      const queryParamValue = currentRouteQueryParams[queryParamName];
+      if (isArray(queryParamValue)) {
+        queryParamValue.forEach((v2) => params.append(queryParamName, v2 || ""));
+      } else {
+        params.append(queryParamName, queryParamValue || "");
+      }
+    }
+  }
+  const queryString = params.toString();
+  if (queryString) {
+    href = `${href}?${queryString}`;
+  }
+  return href;
+}
+function getCanonicalLink(common, idAttribute, seoAttributes) {
+  const baseUrl = getBaseUrl();
+  const href = getCanonicalUrl(common, baseUrl, seoAttributes);
+  if (!href) return [];
+  return [{ [idAttribute]: "i18n-can", rel: "canonical", href }];
+}
+function getOgUrl(common, idAttribute, seoAttributes) {
+  const baseUrl = getBaseUrl();
+  const href = getCanonicalUrl(common, baseUrl, seoAttributes);
+  if (!href) return [];
+  return [{ [idAttribute]: "i18n-og-url", property: "og:url", content: href }];
+}
+function getCurrentOgLocale(currentLocale, currentLanguage, idAttribute) {
+  if (!currentLocale || !currentLanguage) return [];
+  return [{ [idAttribute]: "i18n-og", property: "og:locale", content: hypenToUnderscore(currentLanguage) }];
+}
+function getAlternateOgLocales(locales, currentLanguage, idAttribute) {
+  const alternateLocales = locales.filter((locale) => locale.language && locale.language !== currentLanguage);
+  return alternateLocales.map((locale) => ({
+    [idAttribute]: `i18n-og-alt-${locale.language}`,
+    property: "og:locale:alternate",
+    content: hypenToUnderscore(locale.language)
+  }));
+}
+function hypenToUnderscore(str) {
+  return (str || "").replace(/-/g, "_");
+}
+function toAbsoluteUrl(urlOrPath, baseUrl) {
+  if (urlOrPath.match(/^https?:\/\//)) return urlOrPath;
+  return joinURL(baseUrl, urlOrPath);
+}
+function createLocaleFromRouteGetter() {
+  const { routesNameSeparator, defaultLocaleRouteNameSuffix } = (/* @__PURE__ */ useRuntimeConfig()).public.i18n;
+  const localesPattern = `(${localeCodes.join("|")})`;
+  const defaultSuffixPattern = `(?:${routesNameSeparator}${defaultLocaleRouteNameSuffix})?`;
+  const regexpName = new RegExp(`${routesNameSeparator}${localesPattern}${defaultSuffixPattern}$`, "i");
+  const regexpPath = getLocalesRegex(localeCodes);
+  const getLocaleFromRoute = (route) => {
+    if (isObject(route)) {
+      if (route.name) {
+        const name2 = isString(route.name) ? route.name : route.name.toString();
+        const matches = name2.match(regexpName);
+        if (matches && matches.length > 1) {
+          return matches[1];
+        }
+      } else if (route.path) {
+        const matches = route.path.match(regexpPath);
+        if (matches && matches.length > 1) {
+          return matches[1];
+        }
+      }
+    } else if (isString(route)) {
+      const matches = route.match(regexpPath);
+      if (matches && matches.length > 1) {
+        return matches[1];
+      }
+    }
+    return "";
+  };
+  return getLocaleFromRoute;
+}
+const useStateKeyPrefix = "$s";
+function useState(...args) {
+  const autoKey = typeof args[args.length - 1] === "string" ? args.pop() : void 0;
+  if (typeof args[0] !== "string") {
+    args.unshift(autoKey);
+  }
+  const [_key, init] = args;
+  if (!_key || typeof _key !== "string") {
+    throw new TypeError("[nuxt] [useState] key must be a string: " + _key);
+  }
+  if (init !== void 0 && typeof init !== "function") {
+    throw new Error("[nuxt] [useState] init must be a function: " + init);
+  }
+  const key = useStateKeyPrefix + _key;
+  const nuxtApp = useNuxtApp();
+  const state = toRef(nuxtApp.payload.state, key);
+  if (state.value === void 0 && init) {
+    const initialValue = init();
+    if (isRef(initialValue)) {
+      nuxtApp.payload.state[key] = initialValue;
+      return initialValue;
+    }
+    state.value = initialValue;
+  }
+  return state;
+}
+function setCookieLocale(i18n, locale) {
+  return callVueI18nInterfaces(i18n, "setLocaleCookie", locale);
+}
+function mergeLocaleMessage(i18n, locale, messages) {
+  return callVueI18nInterfaces(i18n, "mergeLocaleMessage", locale, messages);
+}
+async function onBeforeLanguageSwitch(i18n, oldLocale, newLocale, initial, context) {
+  return callVueI18nInterfaces(i18n, "onBeforeLanguageSwitch", oldLocale, newLocale, initial, context);
+}
+function onLanguageSwitched(i18n, oldLocale, newLocale) {
+  return callVueI18nInterfaces(i18n, "onLanguageSwitched", oldLocale, newLocale);
+}
+function initCommonComposableOptions(i18n) {
+  return {
+    i18n: i18n ?? useNuxtApp().$i18n,
+    router: useRouter(),
+    runtimeConfig: /* @__PURE__ */ useRuntimeConfig(),
+    metaState: useState("nuxt-i18n-meta", () => ({}))
+  };
+}
+async function loadAndSetLocale(newLocale, i18n, runtimeI18n, initial = false) {
+  const { differentDomains, skipSettingLocaleOnNavigate, lazy } = runtimeI18n;
+  const opts = runtimeDetectBrowserLanguage(runtimeI18n);
+  const nuxtApp = useNuxtApp();
+  const oldLocale = getLocale$1(i18n);
+  const localeCodes2 = getLocaleCodes(i18n);
+  function syncCookie(locale = oldLocale) {
+    if (opts === false || !opts.useCookie) return;
+    if (skipSettingLocaleOnNavigate) return;
+    setCookieLocale(i18n, locale);
+  }
+  if (!newLocale) {
+    syncCookie();
+    return false;
+  }
+  if (!initial && differentDomains) {
+    syncCookie();
+    return false;
+  }
+  if (oldLocale === newLocale) {
+    syncCookie();
+    return false;
+  }
+  const localeOverride = await onBeforeLanguageSwitch(i18n, oldLocale, newLocale, initial, nuxtApp);
+  if (localeOverride && localeCodes2.includes(localeOverride)) {
+    if (oldLocale === localeOverride) {
+      syncCookie();
+      return false;
+    }
+    newLocale = localeOverride;
+  }
+  if (lazy) {
+    const i18nFallbackLocales = getVueI18nPropertyValue(i18n, "fallbackLocale");
+    const setter = (locale, message) => mergeLocaleMessage(i18n, locale, message);
+    if (i18nFallbackLocales) {
+      const fallbackLocales = makeFallbackLocaleCodes(i18nFallbackLocales, [newLocale]);
+      await Promise.all(fallbackLocales.map((locale) => loadLocale(locale, localeLoaders, setter)));
+    }
+    await loadLocale(newLocale, localeLoaders, setter);
+  }
+  if (skipSettingLocaleOnNavigate) {
+    return false;
+  }
+  syncCookie(newLocale);
+  setLocale(i18n, newLocale);
+  await onLanguageSwitched(i18n, oldLocale, newLocale);
+  return true;
+}
+function createLogger(label) {
+  return {
+    log: console.log.bind(console, `${label}:`)
+    // change to this after implementing logger across runtime code
+    // log: console.log.bind(console, `[i18n:${label}]`)
+  };
+}
+function detectLocale(route, routeLocaleGetter, initialLocaleLoader, detectLocaleContext, runtimeI18n) {
+  const { strategy, defaultLocale, differentDomains, multiDomainLocales } = runtimeI18n;
+  const { localeCookie } = detectLocaleContext;
+  const _detectBrowserLanguage = runtimeDetectBrowserLanguage(runtimeI18n);
+  createLogger("detectLocale");
+  const initialLocale = isFunction(initialLocaleLoader) ? initialLocaleLoader() : initialLocaleLoader;
+  const detectedBrowser = detectBrowserLanguage(route, detectLocaleContext, initialLocale);
+  if (detectedBrowser.reason === DetectFailure.SSG_IGNORE) {
+    return initialLocale;
+  }
+  if (detectedBrowser.locale && detectedBrowser.from != null) {
+    return detectedBrowser.locale;
+  }
+  let detected = "";
+  if (differentDomains || multiDomainLocales) {
+    detected || (detected = getLocaleDomain(normalizedLocales, strategy, route));
+  } else if (strategy !== "no_prefix") {
+    detected || (detected = routeLocaleGetter(route));
+  }
+  const cookieLocale = _detectBrowserLanguage && _detectBrowserLanguage.useCookie && localeCookie;
+  detected || (detected = cookieLocale || initialLocale || defaultLocale || "");
+  return detected;
+}
+function detectRedirect({
+  route,
+  targetLocale,
+  routeLocaleGetter,
+  calledWithRouting = false
+}) {
+  const nuxtApp = useNuxtApp();
+  const common = initCommonComposableOptions();
+  const { strategy, differentDomains } = common.runtimeConfig.public.i18n;
+  let redirectPath = "";
+  const { fullPath: toFullPath } = route.to;
+  if (!differentDomains && (calledWithRouting || strategy !== "no_prefix") && routeLocaleGetter(route.to) !== targetLocale) {
+    const routePath = nuxtApp.$switchLocalePath(targetLocale) || nuxtApp.$localePath(toFullPath, targetLocale);
+    if (isString(routePath) && routePath && !isEqual(routePath, toFullPath) && !routePath.startsWith("//")) {
+      redirectPath = !(route.from && route.from.fullPath === routePath) ? routePath : "";
+    }
+  }
+  if ((differentDomains || isSSG) && routeLocaleGetter(route.to) !== targetLocale) {
+    const routePath = switchLocalePath(common, targetLocale, route.to);
+    if (isString(routePath) && routePath && !isEqual(routePath, toFullPath) && !routePath.startsWith("//")) {
+      redirectPath = routePath;
+    }
+  }
+  return redirectPath;
+}
+function isRootRedirectOptions(rootRedirect) {
+  return isObject(rootRedirect) && "path" in rootRedirect && "statusCode" in rootRedirect;
+}
+const useRedirectState = () => useState(NUXT_I18N_MODULE_ID + ":redirect", () => "");
+function _navigate(redirectPath, status) {
+  return navigateTo(redirectPath, { redirectCode: status });
+}
+async function navigate(args, { status = 302, enableNavigate = false } = {}) {
+  const { nuxtApp, i18n, locale, route } = args;
+  const { rootRedirect, differentDomains, multiDomainLocales, skipSettingLocaleOnNavigate, configLocales, strategy } = nuxtApp.$config.public.i18n;
+  let { redirectPath } = args;
+  if (route.path === "/" && rootRedirect) {
+    if (isString(rootRedirect)) {
+      redirectPath = "/" + rootRedirect;
+    } else if (isRootRedirectOptions(rootRedirect)) {
+      redirectPath = "/" + rootRedirect.path;
+      status = rootRedirect.statusCode;
+    }
+    redirectPath = nuxtApp.$localePath(redirectPath, locale);
+    return _navigate(redirectPath, status);
+  }
+  if (multiDomainLocales && strategy === "prefix_except_default") {
+    const host = getHost();
+    const currentDomain = configLocales.find((locale2) => {
+      var _a;
+      if (typeof locale2 !== "string") {
+        return (_a = locale2.defaultForDomains) == null ? void 0 : _a.find((domain) => domain === host);
+      }
+      return false;
+    });
+    const defaultLocaleForDomain = typeof currentDomain !== "string" ? currentDomain == null ? void 0 : currentDomain.code : void 0;
+    if (route.path.startsWith(`/${defaultLocaleForDomain}`)) {
+      return _navigate(route.path.replace(`/${defaultLocaleForDomain}`, ""), status);
+    } else if (!route.path.startsWith(`/${locale}`) && locale !== defaultLocaleForDomain) {
+      const getLocaleFromRoute = createLocaleFromRouteGetter();
+      const oldLocale = getLocaleFromRoute(route.path);
+      if (oldLocale !== "") {
+        return _navigate(`/${locale + route.path.replace(`/${oldLocale}`, "")}`, status);
+      } else {
+        return _navigate(`/${locale + (route.path === "/" ? "" : route.path)}`, status);
+      }
+    } else if (redirectPath && route.path !== redirectPath) {
+      return _navigate(redirectPath, status);
+    }
+    return;
+  }
+  if (!differentDomains) {
+    if (redirectPath) {
+      return _navigate(redirectPath, status);
+    }
+  } else {
+    const state = useRedirectState();
+    if (state.value && state.value !== redirectPath) {
+      {
+        state.value = redirectPath;
+      }
+    }
+  }
+}
+function injectNuxtHelpers(nuxt, i18n) {
+  defineGetter(nuxt, "$i18n", getI18nTarget(i18n));
+  defineGetter(nuxt, "$getRouteBaseName", wrapComposable(getRouteBaseName));
+  defineGetter(nuxt, "$localePath", wrapComposable(localePath));
+  defineGetter(nuxt, "$localeRoute", wrapComposable(localeRoute));
+  defineGetter(nuxt, "$switchLocalePath", wrapComposable(switchLocalePath));
+  defineGetter(nuxt, "$localeHead", wrapComposable(localeHead));
+}
+function extendPrefixable(runtimeConfig = /* @__PURE__ */ useRuntimeConfig()) {
+  return (opts) => {
+    return DefaultPrefixable(opts) && !runtimeConfig.public.i18n.differentDomains;
+  };
+}
+function extendSwitchLocalePathIntercepter(runtimeConfig = /* @__PURE__ */ useRuntimeConfig()) {
+  return (path, locale) => {
+    if (runtimeConfig.public.i18n.differentDomains) {
+      const domain = getDomainFromLocale(locale);
+      if (domain) {
+        return joinURL(domain, path);
+      } else {
+        return path;
+      }
+    } else {
+      return DefaultSwitchLocalePathIntercepter(path);
+    }
+  };
+}
+function extendBaseUrl() {
+  return () => {
+    const ctx = useNuxtApp();
+    const { baseUrl, defaultLocale, differentDomains } = ctx.$config.public.i18n;
+    if (isFunction(baseUrl)) {
+      const baseUrlResult = baseUrl(ctx);
+      return baseUrlResult;
+    }
+    const localeCode = isFunction(defaultLocale) ? defaultLocale() : defaultLocale;
+    if (differentDomains && localeCode) {
+      const domain = getDomainFromLocale(localeCode);
+      if (domain) {
+        return domain;
+      }
+    }
+    if (baseUrl) {
+      return baseUrl;
+    }
+    return baseUrl;
+  };
+}
+function useRequestEvent(nuxtApp = useNuxtApp()) {
+  var _a;
+  return (_a = nuxtApp.ssrContext) == null ? void 0 : _a.event;
+}
+function useRequestHeaders(include) {
+  const event = useRequestEvent();
+  const _headers = event ? getRequestHeaders(event) : {};
+  if (!include || !event) {
+    return _headers;
+  }
+  const headers = /* @__PURE__ */ Object.create(null);
+  for (const _key of include) {
+    const key = _key.toLowerCase();
+    const header = _headers[key];
+    if (header) {
+      headers[key] = header;
+    }
+  }
+  return headers;
+}
+const CookieDefaults = {
+  path: "/",
+  watch: true,
+  decode: (val) => destr(decodeURIComponent(val)),
+  encode: (val) => encodeURIComponent(typeof val === "string" ? val : JSON.stringify(val))
+};
+function useCookie(name2, _opts) {
+  var _a;
+  const opts = { ...CookieDefaults, ..._opts };
+  opts.filter ?? (opts.filter = (key) => key === name2);
+  const cookies = readRawCookies(opts) || {};
+  let delay;
+  if (opts.maxAge !== void 0) {
+    delay = opts.maxAge * 1e3;
+  } else if (opts.expires) {
+    delay = opts.expires.getTime() - Date.now();
+  }
+  const hasExpired = delay !== void 0 && delay <= 0;
+  const cookieValue = klona(hasExpired ? void 0 : cookies[name2] ?? ((_a = opts.default) == null ? void 0 : _a.call(opts)));
+  const cookie = ref(cookieValue);
+  {
+    const nuxtApp = useNuxtApp();
+    const writeFinalCookieValue = () => {
+      if (opts.readonly || isEqual$1(cookie.value, cookies[name2])) {
+        return;
+      }
+      nuxtApp._cookies || (nuxtApp._cookies = {});
+      if (name2 in nuxtApp._cookies) {
+        if (isEqual$1(cookie.value, nuxtApp._cookies[name2])) {
+          return;
+        }
+      }
+      nuxtApp._cookies[name2] = cookie.value;
+      writeServerCookie(useRequestEvent(nuxtApp), name2, cookie.value, opts);
+    };
+    const unhook = nuxtApp.hooks.hookOnce("app:rendered", writeFinalCookieValue);
+    nuxtApp.hooks.hookOnce("app:error", () => {
+      unhook();
+      return writeFinalCookieValue();
+    });
+  }
+  return cookie;
+}
+function readRawCookies(opts = {}) {
+  {
+    return parse$1(getRequestHeader(useRequestEvent(), "cookie") || "", opts);
+  }
+}
+function writeServerCookie(event, name2, value, opts = {}) {
+  if (event) {
+    if (value !== null && value !== void 0) {
+      return setCookie(event, name2, value, opts);
+    }
+    if (getCookie(event, name2) !== void 0) {
+      return deleteCookie(event, name2, opts);
+    }
+  }
+}
+function formatMessage(message) {
+  return NUXT_I18N_MODULE_ID + " " + message;
+}
+function callVueI18nInterfaces(i18n, name2, ...args) {
+  const target = getI18nTarget(i18n);
+  const [obj, method] = [target, target[name2]];
+  return Reflect.apply(method, obj, [...args]);
+}
+function getVueI18nPropertyValue(i18n, name2) {
+  const target = getI18nTarget(i18n);
+  return unref(target[name2]);
+}
+function defineGetter(obj, key, val) {
+  Object.defineProperty(obj, key, { get: () => val });
+}
+function wrapComposable(fn, common = initCommonComposableOptions()) {
+  return (...args) => fn(common, ...args);
+}
+function parseAcceptLanguage(input) {
+  return input.split(",").map((tag) => tag.split(";")[0]);
+}
+function getBrowserLocale() {
+  let ret;
+  {
+    const header = useRequestHeaders(["accept-language"]);
+    const accept = header["accept-language"];
+    if (accept) {
+      ret = findBrowserLocale(normalizedLocales, parseAcceptLanguage(accept));
+    }
+  }
+  return ret;
+}
+function getI18nCookie() {
+  const detect = runtimeDetectBrowserLanguage();
+  const cookieKey = detect && detect.cookieKey || DEFAULT_COOKIE_KEY;
+  const date = /* @__PURE__ */ new Date();
+  const cookieOptions = {
+    expires: new Date(date.setDate(date.getDate() + 365)),
+    path: "/",
+    sameSite: detect && detect.cookieCrossOrigin ? "none" : "lax",
+    secure: detect && detect.cookieCrossOrigin || detect && detect.cookieSecure
+  };
+  if (detect && detect.cookieDomain) {
+    cookieOptions.domain = detect.cookieDomain;
+  }
+  return useCookie(cookieKey, cookieOptions);
+}
+function getLocaleCookie(cookieRef, detect, defaultLocale) {
+  if (detect === false || !detect.useCookie) {
+    return;
+  }
+  const localeCode = cookieRef.value ?? void 0;
+  if (localeCode == null) {
+    return;
+  }
+  if (localeCodes.includes(localeCode)) {
+    return localeCode;
+  }
+  if (defaultLocale) {
+    cookieRef.value = defaultLocale;
+    return defaultLocale;
+  }
+  cookieRef.value = void 0;
+  return;
+}
+function setLocaleCookie(cookieRef, locale, detect) {
+  if (detect === false || !detect.useCookie) {
+    return;
+  }
+  cookieRef.value = locale;
+}
+var DetectFailure = /* @__PURE__ */ ((DetectFailure2) => {
+  DetectFailure2["NOT_FOUND"] = "not_found_match";
+  DetectFailure2["FIRST_ACCESS"] = "first_access_only";
+  DetectFailure2["NO_REDIRECT_ROOT"] = "not_redirect_on_root";
+  DetectFailure2["NO_REDIRECT_NO_PREFIX"] = "not_redirect_on_no_prefix";
+  DetectFailure2["SSG_IGNORE"] = "detect_ignore_on_ssg";
+  return DetectFailure2;
+})(DetectFailure || {});
+const DefaultDetectBrowserLanguageFromResult = { locale: "" };
+function detectBrowserLanguage(route, detectLocaleContext, locale = "") {
+  createLogger("detectBrowserLanguage");
+  const _detect = runtimeDetectBrowserLanguage();
+  if (!_detect) {
+    return DefaultDetectBrowserLanguageFromResult;
+  }
+  const { strategy } = (/* @__PURE__ */ useRuntimeConfig()).public.i18n;
+  const { ssg, callType, firstAccess, localeCookie } = detectLocaleContext;
+  if (!firstAccess) {
+    return {
+      locale: strategy === "no_prefix" ? locale : "",
+      reason: "first_access_only"
+      /* FIRST_ACCESS */
+    };
+  }
+  const { redirectOn, alwaysRedirect, useCookie: useCookie2, fallbackLocale } = _detect;
+  const path = isString(route) ? route : route.path;
+  if (strategy !== "no_prefix") {
+    if (redirectOn === "root" && path !== "/") {
+      return {
+        locale: "",
+        reason: "not_redirect_on_root"
+        /* NO_REDIRECT_ROOT */
+      };
+    }
+    if (redirectOn === "no prefix" && !alwaysRedirect && path.match(getLocalesRegex(localeCodes))) {
+      return {
+        locale: "",
+        reason: "not_redirect_on_no_prefix"
+        /* NO_REDIRECT_NO_PREFIX */
+      };
+    }
+  }
+  let from;
+  const cookieMatch = useCookie2 && localeCookie || void 0;
+  if (useCookie2) {
+    from = "cookie";
+  }
+  const browserMatch = getBrowserLocale();
+  if (!cookieMatch) {
+    from = "navigator_or_header";
+  }
+  const matchedLocale = cookieMatch || browserMatch;
+  const resolved = matchedLocale || fallbackLocale || "";
+  if (!matchedLocale && fallbackLocale) {
+    from = "fallback";
+  }
+  return { locale: resolved, from };
+}
+function getHost() {
+  let host;
+  {
+    const header = useRequestHeaders(["x-forwarded-host", "host"]);
+    let detectedHost;
+    if ("x-forwarded-host" in header) {
+      detectedHost = header["x-forwarded-host"];
+    } else if ("host" in header) {
+      detectedHost = header["host"];
+    }
+    host = isArray(detectedHost) ? detectedHost[0] : detectedHost;
+  }
+  return host;
+}
+function getLocaleDomain(locales, strategy, route) {
+  let host = getHost() || "";
+  if (host) {
+    let matchingLocale;
+    const matchingLocales = locales.filter((locale) => {
+      if (locale && locale.domain) {
+        let domain = locale.domain;
+        if (hasProtocol(locale.domain)) {
+          domain = locale.domain.replace(/(http|https):\/\//, "");
+        }
+        return domain === host;
+      } else if (Array.isArray(locale == null ? void 0 : locale.domains)) {
+        return locale.domains.includes(host);
+      }
+      return false;
+    });
+    if (matchingLocales.length === 1) {
+      matchingLocale = matchingLocales[0];
+    } else if (matchingLocales.length > 1) {
+      if (strategy === "no_prefix") {
+        console.warn(
+          formatMessage(
+            "Multiple matching domains found! This is not supported for no_prefix strategy in combination with differentDomains!"
+          )
+        );
+        matchingLocale = matchingLocales[0];
+      } else {
+        if (route) {
+          const routePath = isObject(route) ? route.path : isString(route) ? route : "";
+          if (routePath && routePath !== "") {
+            const matches = routePath.match(getLocalesRegex(matchingLocales.map((l) => l.code)));
+            if (matches && matches.length > 1) {
+              matchingLocale = matchingLocales.find((l) => l.code === matches[1]);
+            }
+          }
+        }
+        if (!matchingLocale) {
+          matchingLocale = matchingLocales.find(
+            (l) => Array.isArray(l.defaultForDomains) ? l.defaultForDomains.includes(host) : l.domainDefault
+          );
+        }
+      }
+    }
+    if (matchingLocale) {
+      return matchingLocale.code;
+    } else {
+      host = "";
+    }
+  }
+  return host;
+}
+function getDomainFromLocale(localeCode) {
+  var _a, _b, _c, _d, _e, _f;
+  const runtimeConfig = /* @__PURE__ */ useRuntimeConfig();
+  const nuxtApp = useNuxtApp();
+  const host = getHost();
+  const config = runtimeConfig.public.i18n;
+  const lang = normalizedLocales.find((locale) => locale.code === localeCode);
+  const domain = ((_b = (_a = config == null ? void 0 : config.locales) == null ? void 0 : _a[localeCode]) == null ? void 0 : _b.domain) || (lang == null ? void 0 : lang.domain) || ((_e = (_d = (_c = config == null ? void 0 : config.locales) == null ? void 0 : _c[localeCode]) == null ? void 0 : _d.domains) == null ? void 0 : _e.find((v2) => v2 === host)) || ((_f = lang == null ? void 0 : lang.domains) == null ? void 0 : _f.find((v2) => v2 === host));
+  if (domain) {
+    if (hasProtocol(domain, { strict: true })) {
+      return domain;
+    }
+    let protocol;
+    {
+      const {
+        node: { req }
+      } = useRequestEvent(nuxtApp);
+      protocol = req && isHTTPS(req) ? "https:" : "http:";
+    }
+    return protocol + "//" + domain;
+  }
+  console.warn(formatMessage("Could not find domain name for locale " + localeCode));
+}
+const runtimeDetectBrowserLanguage = (opts = (/* @__PURE__ */ useRuntimeConfig()).public.i18n) => {
+  if ((opts == null ? void 0 : opts.detectBrowserLanguage) === false) return false;
+  return opts == null ? void 0 : opts.detectBrowserLanguage;
+};
+/*!
+  * message-compiler v9.14.1
+  * (c) 2024 kazuya kawaguchi
+  * Released under the MIT License.
+  */
+function createPosition(line, column, offset) {
+  return { line, column, offset };
+}
+function createLocation(start, end, source) {
+  const loc = { start, end };
+  return loc;
+}
+const CompileWarnCodes = {
+  USE_MODULO_SYNTAX: 1,
+  __EXTEND_POINT__: 2
+};
+function createCompileWarn(code2, loc, ...args) {
+  const msg = code2;
+  const message = { message: String(msg), code: code2 };
+  if (loc) {
+    message.location = loc;
+  }
+  return message;
+}
+const CompileErrorCodes = {
+  // tokenizer error codes
+  EXPECTED_TOKEN: 1,
+  INVALID_TOKEN_IN_PLACEHOLDER: 2,
+  UNTERMINATED_SINGLE_QUOTE_IN_PLACEHOLDER: 3,
+  UNKNOWN_ESCAPE_SEQUENCE: 4,
+  INVALID_UNICODE_ESCAPE_SEQUENCE: 5,
+  UNBALANCED_CLOSING_BRACE: 6,
+  UNTERMINATED_CLOSING_BRACE: 7,
+  EMPTY_PLACEHOLDER: 8,
+  NOT_ALLOW_NEST_PLACEHOLDER: 9,
+  INVALID_LINKED_FORMAT: 10,
+  // parser error codes
+  MUST_HAVE_MESSAGES_IN_PLURAL: 11,
+  UNEXPECTED_EMPTY_LINKED_MODIFIER: 12,
+  UNEXPECTED_EMPTY_LINKED_KEY: 13,
+  UNEXPECTED_LEXICAL_ANALYSIS: 14,
+  // generator error codes
+  UNHANDLED_CODEGEN_NODE_TYPE: 15,
+  // minifier error codes
+  UNHANDLED_MINIFIER_NODE_TYPE: 16,
+  // Special value for higher-order compilers to pick up the last code
+  // to avoid collision of error codes. This should always be kept as the last
+  // item.
+  __EXTEND_POINT__: 17
+};
+function createCompileError(code2, loc, options = {}) {
+  const { domain, messages, args } = options;
+  const msg = code2;
+  const error = new SyntaxError(String(msg));
+  error.code = code2;
+  if (loc) {
+    error.location = loc;
+  }
+  error.domain = domain;
+  return error;
+}
+function defaultOnError(error) {
+  throw error;
+}
+const CHAR_SP = " ";
+const CHAR_CR = "\r";
+const CHAR_LF = "\n";
+const CHAR_LS = String.fromCharCode(8232);
+const CHAR_PS = String.fromCharCode(8233);
+function createScanner(str) {
+  const _buf = str;
+  let _index = 0;
+  let _line = 1;
+  let _column = 1;
+  let _peekOffset = 0;
+  const isCRLF = (index22) => _buf[index22] === CHAR_CR && _buf[index22 + 1] === CHAR_LF;
+  const isLF = (index22) => _buf[index22] === CHAR_LF;
+  const isPS = (index22) => _buf[index22] === CHAR_PS;
+  const isLS = (index22) => _buf[index22] === CHAR_LS;
+  const isLineEnd = (index22) => isCRLF(index22) || isLF(index22) || isPS(index22) || isLS(index22);
+  const index2 = () => _index;
+  const line = () => _line;
+  const column = () => _column;
+  const peekOffset = () => _peekOffset;
+  const charAt = (offset) => isCRLF(offset) || isPS(offset) || isLS(offset) ? CHAR_LF : _buf[offset];
+  const currentChar = () => charAt(_index);
+  const currentPeek = () => charAt(_index + _peekOffset);
+  function next() {
+    _peekOffset = 0;
+    if (isLineEnd(_index)) {
+      _line++;
+      _column = 0;
+    }
+    if (isCRLF(_index)) {
+      _index++;
+    }
+    _index++;
+    _column++;
+    return _buf[_index];
+  }
+  function peek() {
+    if (isCRLF(_index + _peekOffset)) {
+      _peekOffset++;
+    }
+    _peekOffset++;
+    return _buf[_index + _peekOffset];
+  }
+  function reset() {
+    _index = 0;
+    _line = 1;
+    _column = 1;
+    _peekOffset = 0;
+  }
+  function resetPeek(offset = 0) {
+    _peekOffset = offset;
+  }
+  function skipToPeek() {
+    const target = _index + _peekOffset;
+    while (target !== _index) {
+      next();
+    }
+    _peekOffset = 0;
+  }
+  return {
+    index: index2,
+    line,
+    column,
+    peekOffset,
+    charAt,
+    currentChar,
+    currentPeek,
+    next,
+    peek,
+    reset,
+    resetPeek,
+    skipToPeek
+  };
+}
+const EOF = void 0;
+const DOT = ".";
+const LITERAL_DELIMITER = "'";
+const ERROR_DOMAIN$3 = "tokenizer";
+function createTokenizer(source, options = {}) {
+  const location = options.location !== false;
+  const _scnr = createScanner(source);
+  const currentOffset = () => _scnr.index();
+  const currentPosition = () => createPosition(_scnr.line(), _scnr.column(), _scnr.index());
+  const _initLoc = currentPosition();
+  const _initOffset = currentOffset();
+  const _context = {
+    currentType: 14,
+    offset: _initOffset,
+    startLoc: _initLoc,
+    endLoc: _initLoc,
+    lastType: 14,
+    lastOffset: _initOffset,
+    lastStartLoc: _initLoc,
+    lastEndLoc: _initLoc,
+    braceNest: 0,
+    inLinked: false,
+    text: ""
+  };
+  const context = () => _context;
+  const { onError } = options;
+  function emitError(code2, pos, offset, ...args) {
+    const ctx = context();
+    pos.column += offset;
+    pos.offset += offset;
+    if (onError) {
+      const loc = location ? createLocation(ctx.startLoc, pos) : null;
+      const err = createCompileError(code2, loc, {
+        domain: ERROR_DOMAIN$3,
+        args
+      });
+      onError(err);
+    }
+  }
+  function getToken(context2, type2, value) {
+    context2.endLoc = currentPosition();
+    context2.currentType = type2;
+    const token = { type: type2 };
+    if (location) {
+      token.loc = createLocation(context2.startLoc, context2.endLoc);
+    }
+    if (value != null) {
+      token.value = value;
+    }
+    return token;
+  }
+  const getEndToken = (context2) => getToken(
+    context2,
+    14
+    /* TokenTypes.EOF */
+  );
+  function eat(scnr, ch) {
+    if (scnr.currentChar() === ch) {
+      scnr.next();
+      return ch;
+    } else {
+      emitError(CompileErrorCodes.EXPECTED_TOKEN, currentPosition(), 0, ch);
+      return "";
+    }
+  }
+  function peekSpaces(scnr) {
+    let buf = "";
+    while (scnr.currentPeek() === CHAR_SP || scnr.currentPeek() === CHAR_LF) {
+      buf += scnr.currentPeek();
+      scnr.peek();
+    }
+    return buf;
+  }
+  function skipSpaces(scnr) {
+    const buf = peekSpaces(scnr);
+    scnr.skipToPeek();
+    return buf;
+  }
+  function isIdentifierStart(ch) {
+    if (ch === EOF) {
+      return false;
+    }
+    const cc = ch.charCodeAt(0);
+    return cc >= 97 && cc <= 122 || // a-z
+    cc >= 65 && cc <= 90 || // A-Z
+    cc === 95;
+  }
+  function isNumberStart(ch) {
+    if (ch === EOF) {
+      return false;
+    }
+    const cc = ch.charCodeAt(0);
+    return cc >= 48 && cc <= 57;
+  }
+  function isNamedIdentifierStart(scnr, context2) {
+    const { currentType } = context2;
+    if (currentType !== 2) {
+      return false;
+    }
+    peekSpaces(scnr);
+    const ret = isIdentifierStart(scnr.currentPeek());
+    scnr.resetPeek();
+    return ret;
+  }
+  function isListIdentifierStart(scnr, context2) {
+    const { currentType } = context2;
+    if (currentType !== 2) {
+      return false;
+    }
+    peekSpaces(scnr);
+    const ch = scnr.currentPeek() === "-" ? scnr.peek() : scnr.currentPeek();
+    const ret = isNumberStart(ch);
+    scnr.resetPeek();
+    return ret;
+  }
+  function isLiteralStart(scnr, context2) {
+    const { currentType } = context2;
+    if (currentType !== 2) {
+      return false;
+    }
+    peekSpaces(scnr);
+    const ret = scnr.currentPeek() === LITERAL_DELIMITER;
+    scnr.resetPeek();
+    return ret;
+  }
+  function isLinkedDotStart(scnr, context2) {
+    const { currentType } = context2;
+    if (currentType !== 8) {
+      return false;
+    }
+    peekSpaces(scnr);
+    const ret = scnr.currentPeek() === ".";
+    scnr.resetPeek();
+    return ret;
+  }
+  function isLinkedModifierStart(scnr, context2) {
+    const { currentType } = context2;
+    if (currentType !== 9) {
+      return false;
+    }
+    peekSpaces(scnr);
+    const ret = isIdentifierStart(scnr.currentPeek());
+    scnr.resetPeek();
+    return ret;
+  }
+  function isLinkedDelimiterStart(scnr, context2) {
+    const { currentType } = context2;
+    if (!(currentType === 8 || currentType === 12)) {
+      return false;
+    }
+    peekSpaces(scnr);
+    const ret = scnr.currentPeek() === ":";
+    scnr.resetPeek();
+    return ret;
+  }
+  function isLinkedReferStart(scnr, context2) {
+    const { currentType } = context2;
+    if (currentType !== 10) {
+      return false;
+    }
+    const fn = () => {
+      const ch = scnr.currentPeek();
+      if (ch === "{") {
+        return isIdentifierStart(scnr.peek());
+      } else if (ch === "@" || ch === "%" || ch === "|" || ch === ":" || ch === "." || ch === CHAR_SP || !ch) {
+        return false;
+      } else if (ch === CHAR_LF) {
+        scnr.peek();
+        return fn();
+      } else {
+        return isTextStart(scnr, false);
+      }
+    };
+    const ret = fn();
+    scnr.resetPeek();
+    return ret;
+  }
+  function isPluralStart(scnr) {
+    peekSpaces(scnr);
+    const ret = scnr.currentPeek() === "|";
+    scnr.resetPeek();
+    return ret;
+  }
+  function detectModuloStart(scnr) {
+    const spaces = peekSpaces(scnr);
+    const ret = scnr.currentPeek() === "%" && scnr.peek() === "{";
+    scnr.resetPeek();
+    return {
+      isModulo: ret,
+      hasSpace: spaces.length > 0
+    };
+  }
+  function isTextStart(scnr, reset = true) {
+    const fn = (hasSpace = false, prev = "", detectModulo = false) => {
+      const ch = scnr.currentPeek();
+      if (ch === "{") {
+        return prev === "%" ? false : hasSpace;
+      } else if (ch === "@" || !ch) {
+        return prev === "%" ? true : hasSpace;
+      } else if (ch === "%") {
+        scnr.peek();
+        return fn(hasSpace, "%", true);
+      } else if (ch === "|") {
+        return prev === "%" || detectModulo ? true : !(prev === CHAR_SP || prev === CHAR_LF);
+      } else if (ch === CHAR_SP) {
+        scnr.peek();
+        return fn(true, CHAR_SP, detectModulo);
+      } else if (ch === CHAR_LF) {
+        scnr.peek();
+        return fn(true, CHAR_LF, detectModulo);
+      } else {
+        return true;
+      }
+    };
+    const ret = fn();
+    reset && scnr.resetPeek();
+    return ret;
+  }
+  function takeChar(scnr, fn) {
+    const ch = scnr.currentChar();
+    if (ch === EOF) {
+      return EOF;
+    }
+    if (fn(ch)) {
+      scnr.next();
+      return ch;
+    }
+    return null;
+  }
+  function isIdentifier(ch) {
+    const cc = ch.charCodeAt(0);
+    return cc >= 97 && cc <= 122 || // a-z
+    cc >= 65 && cc <= 90 || // A-Z
+    cc >= 48 && cc <= 57 || // 0-9
+    cc === 95 || // _
+    cc === 36;
+  }
+  function takeIdentifierChar(scnr) {
+    return takeChar(scnr, isIdentifier);
+  }
+  function isNamedIdentifier(ch) {
+    const cc = ch.charCodeAt(0);
+    return cc >= 97 && cc <= 122 || // a-z
+    cc >= 65 && cc <= 90 || // A-Z
+    cc >= 48 && cc <= 57 || // 0-9
+    cc === 95 || // _
+    cc === 36 || // $
+    cc === 45;
+  }
+  function takeNamedIdentifierChar(scnr) {
+    return takeChar(scnr, isNamedIdentifier);
+  }
+  function isDigit(ch) {
+    const cc = ch.charCodeAt(0);
+    return cc >= 48 && cc <= 57;
+  }
+  function takeDigit(scnr) {
+    return takeChar(scnr, isDigit);
+  }
+  function isHexDigit(ch) {
+    const cc = ch.charCodeAt(0);
+    return cc >= 48 && cc <= 57 || // 0-9
+    cc >= 65 && cc <= 70 || // A-F
+    cc >= 97 && cc <= 102;
+  }
+  function takeHexDigit(scnr) {
+    return takeChar(scnr, isHexDigit);
+  }
+  function getDigits(scnr) {
+    let ch = "";
+    let num = "";
+    while (ch = takeDigit(scnr)) {
+      num += ch;
+    }
+    return num;
+  }
+  function readModulo(scnr) {
+    skipSpaces(scnr);
+    const ch = scnr.currentChar();
+    if (ch !== "%") {
+      emitError(CompileErrorCodes.EXPECTED_TOKEN, currentPosition(), 0, ch);
+    }
+    scnr.next();
+    return "%";
+  }
+  function readText(scnr) {
+    let buf = "";
+    while (true) {
+      const ch = scnr.currentChar();
+      if (ch === "{" || ch === "}" || ch === "@" || ch === "|" || !ch) {
+        break;
+      } else if (ch === "%") {
+        if (isTextStart(scnr)) {
+          buf += ch;
+          scnr.next();
+        } else {
+          break;
+        }
+      } else if (ch === CHAR_SP || ch === CHAR_LF) {
+        if (isTextStart(scnr)) {
+          buf += ch;
+          scnr.next();
+        } else if (isPluralStart(scnr)) {
+          break;
+        } else {
+          buf += ch;
+          scnr.next();
+        }
+      } else {
+        buf += ch;
+        scnr.next();
+      }
+    }
+    return buf;
+  }
+  function readNamedIdentifier(scnr) {
+    skipSpaces(scnr);
+    let ch = "";
+    let name2 = "";
+    while (ch = takeNamedIdentifierChar(scnr)) {
+      name2 += ch;
+    }
+    if (scnr.currentChar() === EOF) {
+      emitError(CompileErrorCodes.UNTERMINATED_CLOSING_BRACE, currentPosition(), 0);
+    }
+    return name2;
+  }
+  function readListIdentifier(scnr) {
+    skipSpaces(scnr);
+    let value = "";
+    if (scnr.currentChar() === "-") {
+      scnr.next();
+      value += `-${getDigits(scnr)}`;
+    } else {
+      value += getDigits(scnr);
+    }
+    if (scnr.currentChar() === EOF) {
+      emitError(CompileErrorCodes.UNTERMINATED_CLOSING_BRACE, currentPosition(), 0);
+    }
+    return value;
+  }
+  function isLiteral2(ch) {
+    return ch !== LITERAL_DELIMITER && ch !== CHAR_LF;
+  }
+  function readLiteral(scnr) {
+    skipSpaces(scnr);
+    eat(scnr, `'`);
+    let ch = "";
+    let literal = "";
+    while (ch = takeChar(scnr, isLiteral2)) {
+      if (ch === "\\") {
+        literal += readEscapeSequence(scnr);
+      } else {
+        literal += ch;
+      }
+    }
+    const current = scnr.currentChar();
+    if (current === CHAR_LF || current === EOF) {
+      emitError(CompileErrorCodes.UNTERMINATED_SINGLE_QUOTE_IN_PLACEHOLDER, currentPosition(), 0);
+      if (current === CHAR_LF) {
+        scnr.next();
+        eat(scnr, `'`);
+      }
+      return literal;
+    }
+    eat(scnr, `'`);
+    return literal;
+  }
+  function readEscapeSequence(scnr) {
+    const ch = scnr.currentChar();
+    switch (ch) {
+      case "\\":
+      case `'`:
+        scnr.next();
+        return `\\${ch}`;
+      case "u":
+        return readUnicodeEscapeSequence(scnr, ch, 4);
+      case "U":
+        return readUnicodeEscapeSequence(scnr, ch, 6);
+      default:
+        emitError(CompileErrorCodes.UNKNOWN_ESCAPE_SEQUENCE, currentPosition(), 0, ch);
+        return "";
+    }
+  }
+  function readUnicodeEscapeSequence(scnr, unicode, digits) {
+    eat(scnr, unicode);
+    let sequence = "";
+    for (let i = 0; i < digits; i++) {
+      const ch = takeHexDigit(scnr);
+      if (!ch) {
+        emitError(CompileErrorCodes.INVALID_UNICODE_ESCAPE_SEQUENCE, currentPosition(), 0, `\\${unicode}${sequence}${scnr.currentChar()}`);
+        break;
+      }
+      sequence += ch;
+    }
+    return `\\${unicode}${sequence}`;
+  }
+  function isInvalidIdentifier(ch) {
+    return ch !== "{" && ch !== "}" && ch !== CHAR_SP && ch !== CHAR_LF;
+  }
+  function readInvalidIdentifier(scnr) {
+    skipSpaces(scnr);
+    let ch = "";
+    let identifiers = "";
+    while (ch = takeChar(scnr, isInvalidIdentifier)) {
+      identifiers += ch;
+    }
+    return identifiers;
+  }
+  function readLinkedModifier(scnr) {
+    let ch = "";
+    let name2 = "";
+    while (ch = takeIdentifierChar(scnr)) {
+      name2 += ch;
+    }
+    return name2;
+  }
+  function readLinkedRefer(scnr) {
+    const fn = (buf) => {
+      const ch = scnr.currentChar();
+      if (ch === "{" || ch === "%" || ch === "@" || ch === "|" || ch === "(" || ch === ")" || !ch) {
+        return buf;
+      } else if (ch === CHAR_SP) {
+        return buf;
+      } else if (ch === CHAR_LF || ch === DOT) {
+        buf += ch;
+        scnr.next();
+        return fn(buf);
+      } else {
+        buf += ch;
+        scnr.next();
+        return fn(buf);
+      }
+    };
+    return fn("");
+  }
+  function readPlural(scnr) {
+    skipSpaces(scnr);
+    const plural = eat(
+      scnr,
+      "|"
+      /* TokenChars.Pipe */
+    );
+    skipSpaces(scnr);
+    return plural;
+  }
+  function readTokenInPlaceholder(scnr, context2) {
+    let token = null;
+    const ch = scnr.currentChar();
+    switch (ch) {
+      case "{":
+        if (context2.braceNest >= 1) {
+          emitError(CompileErrorCodes.NOT_ALLOW_NEST_PLACEHOLDER, currentPosition(), 0);
+        }
+        scnr.next();
+        token = getToken(
+          context2,
+          2,
+          "{"
+          /* TokenChars.BraceLeft */
+        );
+        skipSpaces(scnr);
+        context2.braceNest++;
+        return token;
+      case "}":
+        if (context2.braceNest > 0 && context2.currentType === 2) {
+          emitError(CompileErrorCodes.EMPTY_PLACEHOLDER, currentPosition(), 0);
+        }
+        scnr.next();
+        token = getToken(
+          context2,
+          3,
+          "}"
+          /* TokenChars.BraceRight */
+        );
+        context2.braceNest--;
+        context2.braceNest > 0 && skipSpaces(scnr);
+        if (context2.inLinked && context2.braceNest === 0) {
+          context2.inLinked = false;
+        }
+        return token;
+      case "@":
+        if (context2.braceNest > 0) {
+          emitError(CompileErrorCodes.UNTERMINATED_CLOSING_BRACE, currentPosition(), 0);
+        }
+        token = readTokenInLinked(scnr, context2) || getEndToken(context2);
+        context2.braceNest = 0;
+        return token;
+      default: {
+        let validNamedIdentifier = true;
+        let validListIdentifier = true;
+        let validLiteral = true;
+        if (isPluralStart(scnr)) {
+          if (context2.braceNest > 0) {
+            emitError(CompileErrorCodes.UNTERMINATED_CLOSING_BRACE, currentPosition(), 0);
+          }
+          token = getToken(context2, 1, readPlural(scnr));
+          context2.braceNest = 0;
+          context2.inLinked = false;
+          return token;
+        }
+        if (context2.braceNest > 0 && (context2.currentType === 5 || context2.currentType === 6 || context2.currentType === 7)) {
+          emitError(CompileErrorCodes.UNTERMINATED_CLOSING_BRACE, currentPosition(), 0);
+          context2.braceNest = 0;
+          return readToken(scnr, context2);
+        }
+        if (validNamedIdentifier = isNamedIdentifierStart(scnr, context2)) {
+          token = getToken(context2, 5, readNamedIdentifier(scnr));
+          skipSpaces(scnr);
+          return token;
+        }
+        if (validListIdentifier = isListIdentifierStart(scnr, context2)) {
+          token = getToken(context2, 6, readListIdentifier(scnr));
+          skipSpaces(scnr);
+          return token;
+        }
+        if (validLiteral = isLiteralStart(scnr, context2)) {
+          token = getToken(context2, 7, readLiteral(scnr));
+          skipSpaces(scnr);
+          return token;
+        }
+        if (!validNamedIdentifier && !validListIdentifier && !validLiteral) {
+          token = getToken(context2, 13, readInvalidIdentifier(scnr));
+          emitError(CompileErrorCodes.INVALID_TOKEN_IN_PLACEHOLDER, currentPosition(), 0, token.value);
+          skipSpaces(scnr);
+          return token;
+        }
+        break;
+      }
+    }
+    return token;
+  }
+  function readTokenInLinked(scnr, context2) {
+    const { currentType } = context2;
+    let token = null;
+    const ch = scnr.currentChar();
+    if ((currentType === 8 || currentType === 9 || currentType === 12 || currentType === 10) && (ch === CHAR_LF || ch === CHAR_SP)) {
+      emitError(CompileErrorCodes.INVALID_LINKED_FORMAT, currentPosition(), 0);
+    }
+    switch (ch) {
+      case "@":
+        scnr.next();
+        token = getToken(
+          context2,
+          8,
+          "@"
+          /* TokenChars.LinkedAlias */
+        );
+        context2.inLinked = true;
+        return token;
+      case ".":
+        skipSpaces(scnr);
+        scnr.next();
+        return getToken(
+          context2,
+          9,
+          "."
+          /* TokenChars.LinkedDot */
+        );
+      case ":":
+        skipSpaces(scnr);
+        scnr.next();
+        return getToken(
+          context2,
+          10,
+          ":"
+          /* TokenChars.LinkedDelimiter */
+        );
+      default:
+        if (isPluralStart(scnr)) {
+          token = getToken(context2, 1, readPlural(scnr));
+          context2.braceNest = 0;
+          context2.inLinked = false;
+          return token;
+        }
+        if (isLinkedDotStart(scnr, context2) || isLinkedDelimiterStart(scnr, context2)) {
+          skipSpaces(scnr);
+          return readTokenInLinked(scnr, context2);
+        }
+        if (isLinkedModifierStart(scnr, context2)) {
+          skipSpaces(scnr);
+          return getToken(context2, 12, readLinkedModifier(scnr));
+        }
+        if (isLinkedReferStart(scnr, context2)) {
+          skipSpaces(scnr);
+          if (ch === "{") {
+            return readTokenInPlaceholder(scnr, context2) || token;
+          } else {
+            return getToken(context2, 11, readLinkedRefer(scnr));
+          }
+        }
+        if (currentType === 8) {
+          emitError(CompileErrorCodes.INVALID_LINKED_FORMAT, currentPosition(), 0);
+        }
+        context2.braceNest = 0;
+        context2.inLinked = false;
+        return readToken(scnr, context2);
+    }
+  }
+  function readToken(scnr, context2) {
+    let token = {
+      type: 14
+      /* TokenTypes.EOF */
+    };
+    if (context2.braceNest > 0) {
+      return readTokenInPlaceholder(scnr, context2) || getEndToken(context2);
+    }
+    if (context2.inLinked) {
+      return readTokenInLinked(scnr, context2) || getEndToken(context2);
+    }
+    const ch = scnr.currentChar();
+    switch (ch) {
+      case "{":
+        return readTokenInPlaceholder(scnr, context2) || getEndToken(context2);
+      case "}":
+        emitError(CompileErrorCodes.UNBALANCED_CLOSING_BRACE, currentPosition(), 0);
+        scnr.next();
+        return getToken(
+          context2,
+          3,
+          "}"
+          /* TokenChars.BraceRight */
+        );
+      case "@":
+        return readTokenInLinked(scnr, context2) || getEndToken(context2);
+      default: {
+        if (isPluralStart(scnr)) {
+          token = getToken(context2, 1, readPlural(scnr));
+          context2.braceNest = 0;
+          context2.inLinked = false;
+          return token;
+        }
+        const { isModulo, hasSpace } = detectModuloStart(scnr);
+        if (isModulo) {
+          return hasSpace ? getToken(context2, 0, readText(scnr)) : getToken(context2, 4, readModulo(scnr));
+        }
+        if (isTextStart(scnr)) {
+          return getToken(context2, 0, readText(scnr));
+        }
+        break;
+      }
+    }
+    return token;
+  }
+  function nextToken() {
+    const { currentType, offset, startLoc, endLoc } = _context;
+    _context.lastType = currentType;
+    _context.lastOffset = offset;
+    _context.lastStartLoc = startLoc;
+    _context.lastEndLoc = endLoc;
+    _context.offset = currentOffset();
+    _context.startLoc = currentPosition();
+    if (_scnr.currentChar() === EOF) {
+      return getToken(
+        _context,
+        14
+        /* TokenTypes.EOF */
+      );
+    }
+    return readToken(_scnr, _context);
+  }
+  return {
+    nextToken,
+    currentOffset,
+    currentPosition,
+    context
+  };
+}
+const ERROR_DOMAIN$2 = "parser";
+const KNOWN_ESCAPES = /(?:\\\\|\\'|\\u([0-9a-fA-F]{4})|\\U([0-9a-fA-F]{6}))/g;
+function fromEscapeSequence(match, codePoint4, codePoint6) {
+  switch (match) {
+    case `\\\\`:
+      return `\\`;
+    case `\\'`:
+      return `'`;
+    default: {
+      const codePoint = parseInt(codePoint4 || codePoint6, 16);
+      if (codePoint <= 55295 || codePoint >= 57344) {
+        return String.fromCodePoint(codePoint);
+      }
+      return "�";
+    }
+  }
+}
+function createParser(options = {}) {
+  const location = options.location !== false;
+  const { onError, onWarn } = options;
+  function emitError(tokenzer, code2, start, offset, ...args) {
+    const end = tokenzer.currentPosition();
+    end.offset += offset;
+    end.column += offset;
+    if (onError) {
+      const loc = location ? createLocation(start, end) : null;
+      const err = createCompileError(code2, loc, {
+        domain: ERROR_DOMAIN$2,
+        args
+      });
+      onError(err);
+    }
+  }
+  function emitWarn(tokenzer, code2, start, offset, ...args) {
+    const end = tokenzer.currentPosition();
+    end.offset += offset;
+    end.column += offset;
+    if (onWarn) {
+      const loc = location ? createLocation(start, end) : null;
+      onWarn(createCompileWarn(code2, loc, args));
+    }
+  }
+  function startNode(type2, offset, loc) {
+    const node = { type: type2 };
+    if (location) {
+      node.start = offset;
+      node.end = offset;
+      node.loc = { start: loc, end: loc };
+    }
+    return node;
+  }
+  function endNode(node, offset, pos, type2) {
+    if (location) {
+      node.end = offset;
+      if (node.loc) {
+        node.loc.end = pos;
+      }
+    }
+  }
+  function parseText(tokenizer, value) {
+    const context = tokenizer.context();
+    const node = startNode(3, context.offset, context.startLoc);
+    node.value = value;
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  function parseList(tokenizer, index2) {
+    const context = tokenizer.context();
+    const { lastOffset: offset, lastStartLoc: loc } = context;
+    const node = startNode(5, offset, loc);
+    node.index = parseInt(index2, 10);
+    tokenizer.nextToken();
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  function parseNamed(tokenizer, key, modulo) {
+    const context = tokenizer.context();
+    const { lastOffset: offset, lastStartLoc: loc } = context;
+    const node = startNode(4, offset, loc);
+    node.key = key;
+    if (modulo === true) {
+      node.modulo = true;
+    }
+    tokenizer.nextToken();
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  function parseLiteral(tokenizer, value) {
+    const context = tokenizer.context();
+    const { lastOffset: offset, lastStartLoc: loc } = context;
+    const node = startNode(9, offset, loc);
+    node.value = value.replace(KNOWN_ESCAPES, fromEscapeSequence);
+    tokenizer.nextToken();
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  function parseLinkedModifier(tokenizer) {
+    const token = tokenizer.nextToken();
+    const context = tokenizer.context();
+    const { lastOffset: offset, lastStartLoc: loc } = context;
+    const node = startNode(8, offset, loc);
+    if (token.type !== 12) {
+      emitError(tokenizer, CompileErrorCodes.UNEXPECTED_EMPTY_LINKED_MODIFIER, context.lastStartLoc, 0);
+      node.value = "";
+      endNode(node, offset, loc);
+      return {
+        nextConsumeToken: token,
+        node
+      };
+    }
+    if (token.value == null) {
+      emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+    }
+    node.value = token.value || "";
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return {
+      node
+    };
+  }
+  function parseLinkedKey(tokenizer, value) {
+    const context = tokenizer.context();
+    const node = startNode(7, context.offset, context.startLoc);
+    node.value = value;
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  function parseLinked(tokenizer) {
+    const context = tokenizer.context();
+    const linkedNode = startNode(6, context.offset, context.startLoc);
+    let token = tokenizer.nextToken();
+    if (token.type === 9) {
+      const parsed = parseLinkedModifier(tokenizer);
+      linkedNode.modifier = parsed.node;
+      token = parsed.nextConsumeToken || tokenizer.nextToken();
+    }
+    if (token.type !== 10) {
+      emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+    }
+    token = tokenizer.nextToken();
+    if (token.type === 2) {
+      token = tokenizer.nextToken();
+    }
+    switch (token.type) {
+      case 11:
+        if (token.value == null) {
+          emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+        }
+        linkedNode.key = parseLinkedKey(tokenizer, token.value || "");
+        break;
+      case 5:
+        if (token.value == null) {
+          emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+        }
+        linkedNode.key = parseNamed(tokenizer, token.value || "");
+        break;
+      case 6:
+        if (token.value == null) {
+          emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+        }
+        linkedNode.key = parseList(tokenizer, token.value || "");
+        break;
+      case 7:
+        if (token.value == null) {
+          emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+        }
+        linkedNode.key = parseLiteral(tokenizer, token.value || "");
+        break;
+      default: {
+        emitError(tokenizer, CompileErrorCodes.UNEXPECTED_EMPTY_LINKED_KEY, context.lastStartLoc, 0);
+        const nextContext = tokenizer.context();
+        const emptyLinkedKeyNode = startNode(7, nextContext.offset, nextContext.startLoc);
+        emptyLinkedKeyNode.value = "";
+        endNode(emptyLinkedKeyNode, nextContext.offset, nextContext.startLoc);
+        linkedNode.key = emptyLinkedKeyNode;
+        endNode(linkedNode, nextContext.offset, nextContext.startLoc);
+        return {
+          nextConsumeToken: token,
+          node: linkedNode
+        };
+      }
+    }
+    endNode(linkedNode, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return {
+      node: linkedNode
+    };
+  }
+  function parseMessage(tokenizer) {
+    const context = tokenizer.context();
+    const startOffset = context.currentType === 1 ? tokenizer.currentOffset() : context.offset;
+    const startLoc = context.currentType === 1 ? context.endLoc : context.startLoc;
+    const node = startNode(2, startOffset, startLoc);
+    node.items = [];
+    let nextToken = null;
+    let modulo = null;
+    do {
+      const token = nextToken || tokenizer.nextToken();
+      nextToken = null;
+      switch (token.type) {
+        case 0:
+          if (token.value == null) {
+            emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+          }
+          node.items.push(parseText(tokenizer, token.value || ""));
+          break;
+        case 6:
+          if (token.value == null) {
+            emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+          }
+          node.items.push(parseList(tokenizer, token.value || ""));
+          break;
+        case 4:
+          modulo = true;
+          break;
+        case 5:
+          if (token.value == null) {
+            emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+          }
+          node.items.push(parseNamed(tokenizer, token.value || "", !!modulo));
+          if (modulo) {
+            emitWarn(tokenizer, CompileWarnCodes.USE_MODULO_SYNTAX, context.lastStartLoc, 0, getTokenCaption(token));
+            modulo = null;
+          }
+          break;
+        case 7:
+          if (token.value == null) {
+            emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, getTokenCaption(token));
+          }
+          node.items.push(parseLiteral(tokenizer, token.value || ""));
+          break;
+        case 8: {
+          const parsed = parseLinked(tokenizer);
+          node.items.push(parsed.node);
+          nextToken = parsed.nextConsumeToken || null;
+          break;
+        }
+      }
+    } while (context.currentType !== 14 && context.currentType !== 1);
+    const endOffset = context.currentType === 1 ? context.lastOffset : tokenizer.currentOffset();
+    const endLoc = context.currentType === 1 ? context.lastEndLoc : tokenizer.currentPosition();
+    endNode(node, endOffset, endLoc);
+    return node;
+  }
+  function parsePlural(tokenizer, offset, loc, msgNode) {
+    const context = tokenizer.context();
+    let hasEmptyMessage = msgNode.items.length === 0;
+    const node = startNode(1, offset, loc);
+    node.cases = [];
+    node.cases.push(msgNode);
+    do {
+      const msg = parseMessage(tokenizer);
+      if (!hasEmptyMessage) {
+        hasEmptyMessage = msg.items.length === 0;
+      }
+      node.cases.push(msg);
+    } while (context.currentType !== 14);
+    if (hasEmptyMessage) {
+      emitError(tokenizer, CompileErrorCodes.MUST_HAVE_MESSAGES_IN_PLURAL, loc, 0);
+    }
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  function parseResource(tokenizer) {
+    const context = tokenizer.context();
+    const { offset, startLoc } = context;
+    const msgNode = parseMessage(tokenizer);
+    if (context.currentType === 14) {
+      return msgNode;
+    } else {
+      return parsePlural(tokenizer, offset, startLoc, msgNode);
+    }
+  }
+  function parse2(source) {
+    const tokenizer = createTokenizer(source, assign({}, options));
+    const context = tokenizer.context();
+    const node = startNode(0, context.offset, context.startLoc);
+    if (location && node.loc) {
+      node.loc.source = source;
+    }
+    node.body = parseResource(tokenizer);
+    if (options.onCacheKey) {
+      node.cacheKey = options.onCacheKey(source);
+    }
+    if (context.currentType !== 14) {
+      emitError(tokenizer, CompileErrorCodes.UNEXPECTED_LEXICAL_ANALYSIS, context.lastStartLoc, 0, source[context.offset] || "");
+    }
+    endNode(node, tokenizer.currentOffset(), tokenizer.currentPosition());
+    return node;
+  }
+  return { parse: parse2 };
+}
+function getTokenCaption(token) {
+  if (token.type === 14) {
+    return "EOF";
+  }
+  const name2 = (token.value || "").replace(/\r?\n/gu, "\\n");
+  return name2.length > 10 ? name2.slice(0, 9) + "…" : name2;
+}
+function createTransformer(ast, options = {}) {
+  const _context = {
+    ast,
+    helpers: /* @__PURE__ */ new Set()
+  };
+  const context = () => _context;
+  const helper = (name2) => {
+    _context.helpers.add(name2);
+    return name2;
+  };
+  return { context, helper };
+}
+function traverseNodes(nodes, transformer) {
+  for (let i = 0; i < nodes.length; i++) {
+    traverseNode(nodes[i], transformer);
+  }
+}
+function traverseNode(node, transformer) {
+  switch (node.type) {
+    case 1:
+      traverseNodes(node.cases, transformer);
+      transformer.helper(
+        "plural"
+        /* HelperNameMap.PLURAL */
+      );
+      break;
+    case 2:
+      traverseNodes(node.items, transformer);
+      break;
+    case 6: {
+      const linked = node;
+      traverseNode(linked.key, transformer);
+      transformer.helper(
+        "linked"
+        /* HelperNameMap.LINKED */
+      );
+      transformer.helper(
+        "type"
+        /* HelperNameMap.TYPE */
+      );
+      break;
+    }
+    case 5:
+      transformer.helper(
+        "interpolate"
+        /* HelperNameMap.INTERPOLATE */
+      );
+      transformer.helper(
+        "list"
+        /* HelperNameMap.LIST */
+      );
+      break;
+    case 4:
+      transformer.helper(
+        "interpolate"
+        /* HelperNameMap.INTERPOLATE */
+      );
+      transformer.helper(
+        "named"
+        /* HelperNameMap.NAMED */
+      );
+      break;
+  }
+}
+function transform(ast, options = {}) {
+  const transformer = createTransformer(ast);
+  transformer.helper(
+    "normalize"
+    /* HelperNameMap.NORMALIZE */
+  );
+  ast.body && traverseNode(ast.body, transformer);
+  const context = transformer.context();
+  ast.helpers = Array.from(context.helpers);
+}
+function optimize(ast) {
+  const body = ast.body;
+  if (body.type === 2) {
+    optimizeMessageNode(body);
+  } else {
+    body.cases.forEach((c) => optimizeMessageNode(c));
+  }
+  return ast;
+}
+function optimizeMessageNode(message) {
+  if (message.items.length === 1) {
+    const item = message.items[0];
+    if (item.type === 3 || item.type === 9) {
+      message.static = item.value;
+      delete item.value;
+    }
+  } else {
+    const values = [];
+    for (let i = 0; i < message.items.length; i++) {
+      const item = message.items[i];
+      if (!(item.type === 3 || item.type === 9)) {
+        break;
+      }
+      if (item.value == null) {
+        break;
+      }
+      values.push(item.value);
+    }
+    if (values.length === message.items.length) {
+      message.static = join(values);
+      for (let i = 0; i < message.items.length; i++) {
+        const item = message.items[i];
+        if (item.type === 3 || item.type === 9) {
+          delete item.value;
+        }
+      }
+    }
+  }
+}
+function minify(node) {
+  node.t = node.type;
+  switch (node.type) {
+    case 0: {
+      const resource2 = node;
+      minify(resource2.body);
+      resource2.b = resource2.body;
+      delete resource2.body;
+      break;
+    }
+    case 1: {
+      const plural = node;
+      const cases = plural.cases;
+      for (let i = 0; i < cases.length; i++) {
+        minify(cases[i]);
+      }
+      plural.c = cases;
+      delete plural.cases;
+      break;
+    }
+    case 2: {
+      const message = node;
+      const items = message.items;
+      for (let i = 0; i < items.length; i++) {
+        minify(items[i]);
+      }
+      message.i = items;
+      delete message.items;
+      if (message.static) {
+        message.s = message.static;
+        delete message.static;
+      }
+      break;
+    }
+    case 3:
+    case 9:
+    case 8:
+    case 7: {
+      const valueNode = node;
+      if (valueNode.value) {
+        valueNode.v = valueNode.value;
+        delete valueNode.value;
+      }
+      break;
+    }
+    case 6: {
+      const linked = node;
+      minify(linked.key);
+      linked.k = linked.key;
+      delete linked.key;
+      if (linked.modifier) {
+        minify(linked.modifier);
+        linked.m = linked.modifier;
+        delete linked.modifier;
+      }
+      break;
+    }
+    case 5: {
+      const list = node;
+      list.i = list.index;
+      delete list.index;
+      break;
+    }
+    case 4: {
+      const named = node;
+      named.k = named.key;
+      delete named.key;
+      break;
+    }
+  }
+  delete node.type;
+}
+function createCodeGenerator(ast, options) {
+  const { sourceMap, filename, breakLineCode, needIndent: _needIndent } = options;
+  const location = options.location !== false;
+  const _context = {
+    filename,
+    code: "",
+    column: 1,
+    line: 1,
+    offset: 0,
+    map: void 0,
+    breakLineCode,
+    needIndent: _needIndent,
+    indentLevel: 0
+  };
+  if (location && ast.loc) {
+    _context.source = ast.loc.source;
+  }
+  const context = () => _context;
+  function push(code2, node) {
+    _context.code += code2;
+  }
+  function _newline(n, withBreakLine = true) {
+    const _breakLineCode = withBreakLine ? breakLineCode : "";
+    push(_needIndent ? _breakLineCode + `  `.repeat(n) : _breakLineCode);
+  }
+  function indent(withNewLine = true) {
+    const level = ++_context.indentLevel;
+    withNewLine && _newline(level);
+  }
+  function deindent(withNewLine = true) {
+    const level = --_context.indentLevel;
+    withNewLine && _newline(level);
+  }
+  function newline() {
+    _newline(_context.indentLevel);
+  }
+  const helper = (key) => `_${key}`;
+  const needIndent = () => _context.needIndent;
+  return {
+    context,
+    push,
+    indent,
+    deindent,
+    newline,
+    helper,
+    needIndent
+  };
+}
+function generateLinkedNode(generator, node) {
+  const { helper } = generator;
+  generator.push(`${helper(
+    "linked"
+    /* HelperNameMap.LINKED */
+  )}(`);
+  generateNode(generator, node.key);
+  if (node.modifier) {
+    generator.push(`, `);
+    generateNode(generator, node.modifier);
+    generator.push(`, _type`);
+  } else {
+    generator.push(`, undefined, _type`);
+  }
+  generator.push(`)`);
+}
+function generateMessageNode(generator, node) {
+  const { helper, needIndent } = generator;
+  generator.push(`${helper(
+    "normalize"
+    /* HelperNameMap.NORMALIZE */
+  )}([`);
+  generator.indent(needIndent());
+  const length = node.items.length;
+  for (let i = 0; i < length; i++) {
+    generateNode(generator, node.items[i]);
+    if (i === length - 1) {
+      break;
+    }
+    generator.push(", ");
+  }
+  generator.deindent(needIndent());
+  generator.push("])");
+}
+function generatePluralNode(generator, node) {
+  const { helper, needIndent } = generator;
+  if (node.cases.length > 1) {
+    generator.push(`${helper(
+      "plural"
+      /* HelperNameMap.PLURAL */
+    )}([`);
+    generator.indent(needIndent());
+    const length = node.cases.length;
+    for (let i = 0; i < length; i++) {
+      generateNode(generator, node.cases[i]);
+      if (i === length - 1) {
+        break;
+      }
+      generator.push(", ");
+    }
+    generator.deindent(needIndent());
+    generator.push(`])`);
+  }
+}
+function generateResource(generator, node) {
+  if (node.body) {
+    generateNode(generator, node.body);
+  } else {
+    generator.push("null");
+  }
+}
+function generateNode(generator, node) {
+  const { helper } = generator;
+  switch (node.type) {
+    case 0:
+      generateResource(generator, node);
+      break;
+    case 1:
+      generatePluralNode(generator, node);
+      break;
+    case 2:
+      generateMessageNode(generator, node);
+      break;
+    case 6:
+      generateLinkedNode(generator, node);
+      break;
+    case 8:
+      generator.push(JSON.stringify(node.value), node);
+      break;
+    case 7:
+      generator.push(JSON.stringify(node.value), node);
+      break;
+    case 5:
+      generator.push(`${helper(
+        "interpolate"
+        /* HelperNameMap.INTERPOLATE */
+      )}(${helper(
+        "list"
+        /* HelperNameMap.LIST */
+      )}(${node.index}))`, node);
+      break;
+    case 4:
+      generator.push(`${helper(
+        "interpolate"
+        /* HelperNameMap.INTERPOLATE */
+      )}(${helper(
+        "named"
+        /* HelperNameMap.NAMED */
+      )}(${JSON.stringify(node.key)}))`, node);
+      break;
+    case 9:
+      generator.push(JSON.stringify(node.value), node);
+      break;
+    case 3:
+      generator.push(JSON.stringify(node.value), node);
+      break;
+  }
+}
+const generate = (ast, options = {}) => {
+  const mode = isString(options.mode) ? options.mode : "normal";
+  const filename = isString(options.filename) ? options.filename : "message.intl";
+  const sourceMap = !!options.sourceMap;
+  const breakLineCode = options.breakLineCode != null ? options.breakLineCode : mode === "arrow" ? ";" : "\n";
+  const needIndent = options.needIndent ? options.needIndent : mode !== "arrow";
+  const helpers = ast.helpers || [];
+  const generator = createCodeGenerator(ast, {
+    mode,
+    filename,
+    sourceMap,
+    breakLineCode,
+    needIndent
+  });
+  generator.push(mode === "normal" ? `function __msg__ (ctx) {` : `(ctx) => {`);
+  generator.indent(needIndent);
+  if (helpers.length > 0) {
+    generator.push(`const { ${join(helpers.map((s) => `${s}: _${s}`), ", ")} } = ctx`);
+    generator.newline();
+  }
+  generator.push(`return `);
+  generateNode(generator, ast);
+  generator.deindent(needIndent);
+  generator.push(`}`);
+  delete ast.helpers;
+  const { code: code2, map } = generator.context();
+  return {
+    ast,
+    code: code2,
+    map: map ? map.toJSON() : void 0
+    // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+};
+function baseCompile$1(source, options = {}) {
+  const assignedOptions = assign({}, options);
+  const jit = !!assignedOptions.jit;
+  const enalbeMinify = !!assignedOptions.minify;
+  const enambeOptimize = assignedOptions.optimize == null ? true : assignedOptions.optimize;
+  const parser = createParser(assignedOptions);
+  const ast = parser.parse(source);
+  if (!jit) {
+    transform(ast, assignedOptions);
+    return generate(ast, assignedOptions);
+  } else {
+    enambeOptimize && optimize(ast);
+    enalbeMinify && minify(ast);
+    return { ast, code: "" };
+  }
+}
+const pathStateMachine = [];
+pathStateMachine[
+  0
+  /* States.BEFORE_PATH */
+] = {
+  [
+    "w"
+    /* PathCharTypes.WORKSPACE */
+  ]: [
+    0
+    /* States.BEFORE_PATH */
+  ],
+  [
+    "i"
+    /* PathCharTypes.IDENT */
+  ]: [
+    3,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "["
+    /* PathCharTypes.LEFT_BRACKET */
+  ]: [
+    4
+    /* States.IN_SUB_PATH */
+  ],
+  [
+    "o"
+    /* PathCharTypes.END_OF_FAIL */
+  ]: [
+    7
+    /* States.AFTER_PATH */
+  ]
+};
+pathStateMachine[
+  1
+  /* States.IN_PATH */
+] = {
+  [
+    "w"
+    /* PathCharTypes.WORKSPACE */
+  ]: [
+    1
+    /* States.IN_PATH */
+  ],
+  [
+    "."
+    /* PathCharTypes.DOT */
+  ]: [
+    2
+    /* States.BEFORE_IDENT */
+  ],
+  [
+    "["
+    /* PathCharTypes.LEFT_BRACKET */
+  ]: [
+    4
+    /* States.IN_SUB_PATH */
+  ],
+  [
+    "o"
+    /* PathCharTypes.END_OF_FAIL */
+  ]: [
+    7
+    /* States.AFTER_PATH */
+  ]
+};
+pathStateMachine[
+  2
+  /* States.BEFORE_IDENT */
+] = {
+  [
+    "w"
+    /* PathCharTypes.WORKSPACE */
+  ]: [
+    2
+    /* States.BEFORE_IDENT */
+  ],
+  [
+    "i"
+    /* PathCharTypes.IDENT */
+  ]: [
+    3,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "0"
+    /* PathCharTypes.ZERO */
+  ]: [
+    3,
+    0
+    /* Actions.APPEND */
+  ]
+};
+pathStateMachine[
+  3
+  /* States.IN_IDENT */
+] = {
+  [
+    "i"
+    /* PathCharTypes.IDENT */
+  ]: [
+    3,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "0"
+    /* PathCharTypes.ZERO */
+  ]: [
+    3,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "w"
+    /* PathCharTypes.WORKSPACE */
+  ]: [
+    1,
+    1
+    /* Actions.PUSH */
+  ],
+  [
+    "."
+    /* PathCharTypes.DOT */
+  ]: [
+    2,
+    1
+    /* Actions.PUSH */
+  ],
+  [
+    "["
+    /* PathCharTypes.LEFT_BRACKET */
+  ]: [
+    4,
+    1
+    /* Actions.PUSH */
+  ],
+  [
+    "o"
+    /* PathCharTypes.END_OF_FAIL */
+  ]: [
+    7,
+    1
+    /* Actions.PUSH */
+  ]
+};
+pathStateMachine[
+  4
+  /* States.IN_SUB_PATH */
+] = {
+  [
+    "'"
+    /* PathCharTypes.SINGLE_QUOTE */
+  ]: [
+    5,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    '"'
+    /* PathCharTypes.DOUBLE_QUOTE */
+  ]: [
+    6,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "["
+    /* PathCharTypes.LEFT_BRACKET */
+  ]: [
+    4,
+    2
+    /* Actions.INC_SUB_PATH_DEPTH */
+  ],
+  [
+    "]"
+    /* PathCharTypes.RIGHT_BRACKET */
+  ]: [
+    1,
+    3
+    /* Actions.PUSH_SUB_PATH */
+  ],
+  [
+    "o"
+    /* PathCharTypes.END_OF_FAIL */
+  ]: 8,
+  [
+    "l"
+    /* PathCharTypes.ELSE */
+  ]: [
+    4,
+    0
+    /* Actions.APPEND */
+  ]
+};
+pathStateMachine[
+  5
+  /* States.IN_SINGLE_QUOTE */
+] = {
+  [
+    "'"
+    /* PathCharTypes.SINGLE_QUOTE */
+  ]: [
+    4,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "o"
+    /* PathCharTypes.END_OF_FAIL */
+  ]: 8,
+  [
+    "l"
+    /* PathCharTypes.ELSE */
+  ]: [
+    5,
+    0
+    /* Actions.APPEND */
+  ]
+};
+pathStateMachine[
+  6
+  /* States.IN_DOUBLE_QUOTE */
+] = {
+  [
+    '"'
+    /* PathCharTypes.DOUBLE_QUOTE */
+  ]: [
+    4,
+    0
+    /* Actions.APPEND */
+  ],
+  [
+    "o"
+    /* PathCharTypes.END_OF_FAIL */
+  ]: 8,
+  [
+    "l"
+    /* PathCharTypes.ELSE */
+  ]: [
+    6,
+    0
+    /* Actions.APPEND */
+  ]
+};
+const literalValueRE = /^\s?(?:true|false|-?[\d.]+|'[^']*'|"[^"]*")\s?$/;
+function isLiteral(exp) {
+  return literalValueRE.test(exp);
+}
+function stripQuotes(str) {
+  const a = str.charCodeAt(0);
+  const b2 = str.charCodeAt(str.length - 1);
+  return a === b2 && (a === 34 || a === 39) ? str.slice(1, -1) : str;
+}
+function getPathCharType(ch) {
+  if (ch === void 0 || ch === null) {
+    return "o";
+  }
+  const code2 = ch.charCodeAt(0);
+  switch (code2) {
+    case 91:
+    case 93:
+    case 46:
+    case 34:
+    case 39:
+      return ch;
+    case 95:
+    case 36:
+    case 45:
+      return "i";
+    case 9:
+    case 10:
+    case 13:
+    case 160:
+    case 65279:
+    case 8232:
+    case 8233:
+      return "w";
+  }
+  return "i";
+}
+function formatSubPath(path) {
+  const trimmed = path.trim();
+  if (path.charAt(0) === "0" && isNaN(parseInt(path))) {
+    return false;
+  }
+  return isLiteral(trimmed) ? stripQuotes(trimmed) : "*" + trimmed;
+}
+function parse(path) {
+  const keys = [];
+  let index2 = -1;
+  let mode = 0;
+  let subPathDepth = 0;
+  let c;
+  let key;
+  let newChar;
+  let type2;
+  let transition;
+  let action;
+  let typeMap;
+  const actions = [];
+  actions[
+    0
+    /* Actions.APPEND */
+  ] = () => {
+    if (key === void 0) {
+      key = newChar;
+    } else {
+      key += newChar;
+    }
+  };
+  actions[
+    1
+    /* Actions.PUSH */
+  ] = () => {
+    if (key !== void 0) {
+      keys.push(key);
+      key = void 0;
+    }
+  };
+  actions[
+    2
+    /* Actions.INC_SUB_PATH_DEPTH */
+  ] = () => {
+    actions[
+      0
+      /* Actions.APPEND */
+    ]();
+    subPathDepth++;
+  };
+  actions[
+    3
+    /* Actions.PUSH_SUB_PATH */
+  ] = () => {
+    if (subPathDepth > 0) {
+      subPathDepth--;
+      mode = 4;
+      actions[
+        0
+        /* Actions.APPEND */
+      ]();
+    } else {
+      subPathDepth = 0;
+      if (key === void 0) {
+        return false;
+      }
+      key = formatSubPath(key);
+      if (key === false) {
+        return false;
+      } else {
+        actions[
+          1
+          /* Actions.PUSH */
+        ]();
+      }
+    }
+  };
+  function maybeUnescapeQuote() {
+    const nextChar = path[index2 + 1];
+    if (mode === 5 && nextChar === "'" || mode === 6 && nextChar === '"') {
+      index2++;
+      newChar = "\\" + nextChar;
+      actions[
+        0
+        /* Actions.APPEND */
+      ]();
+      return true;
+    }
+  }
+  while (mode !== null) {
+    index2++;
+    c = path[index2];
+    if (c === "\\" && maybeUnescapeQuote()) {
+      continue;
+    }
+    type2 = getPathCharType(c);
+    typeMap = pathStateMachine[mode];
+    transition = typeMap[type2] || typeMap[
+      "l"
+      /* PathCharTypes.ELSE */
+    ] || 8;
+    if (transition === 8) {
+      return;
+    }
+    mode = transition[0];
+    if (transition[1] !== void 0) {
+      action = actions[transition[1]];
+      if (action) {
+        newChar = c;
+        if (action() === false) {
+          return;
+        }
+      }
+    }
+    if (mode === 7) {
+      return keys;
+    }
+  }
+}
+const cache = /* @__PURE__ */ new Map();
+function resolveWithKeyValue(obj, path) {
+  return isObject(obj) ? obj[path] : null;
+}
+function resolveValue(obj, path) {
+  if (!isObject(obj)) {
+    return null;
+  }
+  let hit = cache.get(path);
+  if (!hit) {
+    hit = parse(path);
+    if (hit) {
+      cache.set(path, hit);
+    }
+  }
+  if (!hit) {
+    return null;
+  }
+  const len = hit.length;
+  let last = obj;
+  let i = 0;
+  while (i < len) {
+    const val = last[hit[i]];
+    if (val === void 0) {
+      return null;
+    }
+    if (isFunction(last)) {
+      return null;
+    }
+    last = val;
+    i++;
+  }
+  return last;
+}
+const DEFAULT_MODIFIER = (str) => str;
+const DEFAULT_MESSAGE = (ctx) => "";
+const DEFAULT_MESSAGE_DATA_TYPE = "text";
+const DEFAULT_NORMALIZE = (values) => values.length === 0 ? "" : join(values);
+const DEFAULT_INTERPOLATE = toDisplayString;
+function pluralDefault(choice, choicesLength) {
+  choice = Math.abs(choice);
+  if (choicesLength === 2) {
+    return choice ? choice > 1 ? 1 : 0 : 1;
+  }
+  return choice ? Math.min(choice, 2) : 0;
+}
+function getPluralIndex(options) {
+  const index2 = isNumber(options.pluralIndex) ? options.pluralIndex : -1;
+  return options.named && (isNumber(options.named.count) || isNumber(options.named.n)) ? isNumber(options.named.count) ? options.named.count : isNumber(options.named.n) ? options.named.n : index2 : index2;
+}
+function normalizeNamed(pluralIndex, props) {
+  if (!props.count) {
+    props.count = pluralIndex;
+  }
+  if (!props.n) {
+    props.n = pluralIndex;
+  }
+}
+function createMessageContext(options = {}) {
+  const locale = options.locale;
+  const pluralIndex = getPluralIndex(options);
+  const pluralRule = isObject(options.pluralRules) && isString(locale) && isFunction(options.pluralRules[locale]) ? options.pluralRules[locale] : pluralDefault;
+  const orgPluralRule = isObject(options.pluralRules) && isString(locale) && isFunction(options.pluralRules[locale]) ? pluralDefault : void 0;
+  const plural = (messages) => {
+    return messages[pluralRule(pluralIndex, messages.length, orgPluralRule)];
+  };
+  const _list = options.list || [];
+  const list = (index2) => _list[index2];
+  const _named = options.named || {};
+  isNumber(options.pluralIndex) && normalizeNamed(pluralIndex, _named);
+  const named = (key) => _named[key];
+  function message(key) {
+    const msg = isFunction(options.messages) ? options.messages(key) : isObject(options.messages) ? options.messages[key] : false;
+    return !msg ? options.parent ? options.parent.message(key) : DEFAULT_MESSAGE : msg;
+  }
+  const _modifier = (name2) => options.modifiers ? options.modifiers[name2] : DEFAULT_MODIFIER;
+  const normalize = isPlainObject(options.processor) && isFunction(options.processor.normalize) ? options.processor.normalize : DEFAULT_NORMALIZE;
+  const interpolate = isPlainObject(options.processor) && isFunction(options.processor.interpolate) ? options.processor.interpolate : DEFAULT_INTERPOLATE;
+  const type2 = isPlainObject(options.processor) && isString(options.processor.type) ? options.processor.type : DEFAULT_MESSAGE_DATA_TYPE;
+  const linked = (key, ...args) => {
+    const [arg1, arg2] = args;
+    let type22 = "text";
+    let modifier = "";
+    if (args.length === 1) {
+      if (isObject(arg1)) {
+        modifier = arg1.modifier || modifier;
+        type22 = arg1.type || type22;
+      } else if (isString(arg1)) {
+        modifier = arg1 || modifier;
+      }
+    } else if (args.length === 2) {
+      if (isString(arg1)) {
+        modifier = arg1 || modifier;
+      }
+      if (isString(arg2)) {
+        type22 = arg2 || type22;
+      }
+    }
+    const ret = message(key)(ctx);
+    const msg = (
+      // The message in vnode resolved with linked are returned as an array by processor.nomalize
+      type22 === "vnode" && isArray(ret) && modifier ? ret[0] : ret
+    );
+    return modifier ? _modifier(modifier)(msg, type22) : msg;
+  };
+  const ctx = {
+    [
+      "list"
+      /* HelperNameMap.LIST */
+    ]: list,
+    [
+      "named"
+      /* HelperNameMap.NAMED */
+    ]: named,
+    [
+      "plural"
+      /* HelperNameMap.PLURAL */
+    ]: plural,
+    [
+      "linked"
+      /* HelperNameMap.LINKED */
+    ]: linked,
+    [
+      "message"
+      /* HelperNameMap.MESSAGE */
+    ]: message,
+    [
+      "type"
+      /* HelperNameMap.TYPE */
+    ]: type2,
+    [
+      "interpolate"
+      /* HelperNameMap.INTERPOLATE */
+    ]: interpolate,
+    [
+      "normalize"
+      /* HelperNameMap.NORMALIZE */
+    ]: normalize,
+    [
+      "values"
+      /* HelperNameMap.VALUES */
+    ]: assign({}, _list, _named)
+  };
+  return ctx;
+}
+const code$1$1 = CompileWarnCodes.__EXTEND_POINT__;
+const inc$1$1 = incrementer(code$1$1);
+const CoreWarnCodes = {
+  NOT_FOUND_KEY: code$1$1,
+  // 2
+  FALLBACK_TO_TRANSLATE: inc$1$1(),
+  // 3
+  CANNOT_FORMAT_NUMBER: inc$1$1(),
+  // 4
+  FALLBACK_TO_NUMBER_FORMAT: inc$1$1(),
+  // 5
+  CANNOT_FORMAT_DATE: inc$1$1(),
+  // 6
+  FALLBACK_TO_DATE_FORMAT: inc$1$1(),
+  // 7
+  EXPERIMENTAL_CUSTOM_MESSAGE_COMPILER: inc$1$1(),
+  // 8
+  __EXTEND_POINT__: inc$1$1()
+  // 9
+};
+const code$2 = CompileErrorCodes.__EXTEND_POINT__;
+const inc$2 = incrementer(code$2);
+const CoreErrorCodes = {
+  INVALID_ARGUMENT: code$2,
+  // 17
+  INVALID_DATE_ARGUMENT: inc$2(),
+  // 18
+  INVALID_ISO_DATE_ARGUMENT: inc$2(),
+  // 19
+  NOT_SUPPORT_NON_STRING_MESSAGE: inc$2(),
+  // 20
+  NOT_SUPPORT_LOCALE_PROMISE_VALUE: inc$2(),
+  // 21
+  NOT_SUPPORT_LOCALE_ASYNC_FUNCTION: inc$2(),
+  // 22
+  NOT_SUPPORT_LOCALE_TYPE: inc$2(),
+  // 23
+  __EXTEND_POINT__: inc$2()
+  // 24
+};
+function createCoreError(code2) {
+  return createCompileError(code2, null, void 0);
+}
+function getLocale(context, options) {
+  return options.locale != null ? resolveLocale(options.locale) : resolveLocale(context.locale);
+}
+let _resolveLocale;
+function resolveLocale(locale) {
+  if (isString(locale)) {
+    return locale;
+  } else {
+    if (isFunction(locale)) {
+      if (locale.resolvedOnce && _resolveLocale != null) {
+        return _resolveLocale;
+      } else if (locale.constructor.name === "Function") {
+        const resolve2 = locale();
+        if (isPromise(resolve2)) {
+          throw createCoreError(CoreErrorCodes.NOT_SUPPORT_LOCALE_PROMISE_VALUE);
+        }
+        return _resolveLocale = resolve2;
+      } else {
+        throw createCoreError(CoreErrorCodes.NOT_SUPPORT_LOCALE_ASYNC_FUNCTION);
+      }
+    } else {
+      throw createCoreError(CoreErrorCodes.NOT_SUPPORT_LOCALE_TYPE);
+    }
+  }
+}
+function fallbackWithSimple(ctx, fallback, start) {
+  return [.../* @__PURE__ */ new Set([
+    start,
+    ...isArray(fallback) ? fallback : isObject(fallback) ? Object.keys(fallback) : isString(fallback) ? [fallback] : [start]
+  ])];
+}
+function fallbackWithLocaleChain(ctx, fallback, start) {
+  const startLocale = isString(start) ? start : DEFAULT_LOCALE;
+  const context = ctx;
+  if (!context.__localeChainCache) {
+    context.__localeChainCache = /* @__PURE__ */ new Map();
+  }
+  let chain = context.__localeChainCache.get(startLocale);
+  if (!chain) {
+    chain = [];
+    let block = [start];
+    while (isArray(block)) {
+      block = appendBlockToChain(chain, block, fallback);
+    }
+    const defaults = isArray(fallback) || !isPlainObject(fallback) ? fallback : fallback["default"] ? fallback["default"] : null;
+    block = isString(defaults) ? [defaults] : defaults;
+    if (isArray(block)) {
+      appendBlockToChain(chain, block, false);
+    }
+    context.__localeChainCache.set(startLocale, chain);
+  }
+  return chain;
+}
+function appendBlockToChain(chain, block, blocks) {
+  let follow = true;
+  for (let i = 0; i < block.length && isBoolean(follow); i++) {
+    const locale = block[i];
+    if (isString(locale)) {
+      follow = appendLocaleToChain(chain, block[i], blocks);
+    }
+  }
+  return follow;
+}
+function appendLocaleToChain(chain, locale, blocks) {
+  let follow;
+  const tokens = locale.split("-");
+  do {
+    const target = tokens.join("-");
+    follow = appendItemToChain(chain, target, blocks);
+    tokens.splice(-1, 1);
+  } while (tokens.length && follow === true);
+  return follow;
+}
+function appendItemToChain(chain, target, blocks) {
+  let follow = false;
+  if (!chain.includes(target)) {
+    follow = true;
+    if (target) {
+      follow = target[target.length - 1] !== "!";
+      const locale = target.replace(/!/g, "");
+      chain.push(locale);
+      if ((isArray(blocks) || isPlainObject(blocks)) && blocks[locale]) {
+        follow = blocks[locale];
+      }
+    }
+  }
+  return follow;
+}
+const VERSION$1 = "9.14.1";
+const NOT_REOSLVED = -1;
+const DEFAULT_LOCALE = "en-US";
+const MISSING_RESOLVE_VALUE = "";
+const capitalize = (str) => `${str.charAt(0).toLocaleUpperCase()}${str.substr(1)}`;
+function getDefaultLinkedModifiers() {
+  return {
+    upper: (val, type2) => {
+      return type2 === "text" && isString(val) ? val.toUpperCase() : type2 === "vnode" && isObject(val) && "__v_isVNode" in val ? val.children.toUpperCase() : val;
+    },
+    lower: (val, type2) => {
+      return type2 === "text" && isString(val) ? val.toLowerCase() : type2 === "vnode" && isObject(val) && "__v_isVNode" in val ? val.children.toLowerCase() : val;
+    },
+    capitalize: (val, type2) => {
+      return type2 === "text" && isString(val) ? capitalize(val) : type2 === "vnode" && isObject(val) && "__v_isVNode" in val ? capitalize(val.children) : val;
+    }
+  };
+}
+let _compiler;
+function registerMessageCompiler(compiler) {
+  _compiler = compiler;
+}
+let _resolver;
+function registerMessageResolver(resolver) {
+  _resolver = resolver;
+}
+let _fallbacker;
+function registerLocaleFallbacker(fallbacker) {
+  _fallbacker = fallbacker;
+}
+const setAdditionalMeta = /* @__NO_SIDE_EFFECTS__ */ (meta) => {
+};
+let _fallbackContext = null;
+const setFallbackContext = (context) => {
+  _fallbackContext = context;
+};
+const getFallbackContext = () => _fallbackContext;
+let _cid = 0;
+function createCoreContext(options = {}) {
+  const onWarn = isFunction(options.onWarn) ? options.onWarn : warn;
+  const version2 = isString(options.version) ? options.version : VERSION$1;
+  const locale = isString(options.locale) || isFunction(options.locale) ? options.locale : DEFAULT_LOCALE;
+  const _locale = isFunction(locale) ? DEFAULT_LOCALE : locale;
+  const fallbackLocale = isArray(options.fallbackLocale) || isPlainObject(options.fallbackLocale) || isString(options.fallbackLocale) || options.fallbackLocale === false ? options.fallbackLocale : _locale;
+  const messages = isPlainObject(options.messages) ? options.messages : { [_locale]: {} };
+  const datetimeFormats = isPlainObject(options.datetimeFormats) ? options.datetimeFormats : { [_locale]: {} };
+  const numberFormats = isPlainObject(options.numberFormats) ? options.numberFormats : { [_locale]: {} };
+  const modifiers = assign({}, options.modifiers || {}, getDefaultLinkedModifiers());
+  const pluralRules = options.pluralRules || {};
+  const missing = isFunction(options.missing) ? options.missing : null;
+  const missingWarn = isBoolean(options.missingWarn) || isRegExp(options.missingWarn) ? options.missingWarn : true;
+  const fallbackWarn = isBoolean(options.fallbackWarn) || isRegExp(options.fallbackWarn) ? options.fallbackWarn : true;
+  const fallbackFormat = !!options.fallbackFormat;
+  const unresolving = !!options.unresolving;
+  const postTranslation = isFunction(options.postTranslation) ? options.postTranslation : null;
+  const processor = isPlainObject(options.processor) ? options.processor : null;
+  const warnHtmlMessage = isBoolean(options.warnHtmlMessage) ? options.warnHtmlMessage : true;
+  const escapeParameter = !!options.escapeParameter;
+  const messageCompiler = isFunction(options.messageCompiler) ? options.messageCompiler : _compiler;
+  const messageResolver = isFunction(options.messageResolver) ? options.messageResolver : _resolver || resolveWithKeyValue;
+  const localeFallbacker = isFunction(options.localeFallbacker) ? options.localeFallbacker : _fallbacker || fallbackWithSimple;
+  const fallbackContext = isObject(options.fallbackContext) ? options.fallbackContext : void 0;
+  const internalOptions = options;
+  const __datetimeFormatters = isObject(internalOptions.__datetimeFormatters) ? internalOptions.__datetimeFormatters : /* @__PURE__ */ new Map();
+  const __numberFormatters = isObject(internalOptions.__numberFormatters) ? internalOptions.__numberFormatters : /* @__PURE__ */ new Map();
+  const __meta = isObject(internalOptions.__meta) ? internalOptions.__meta : {};
+  _cid++;
+  const context = {
+    version: version2,
+    cid: _cid,
+    locale,
+    fallbackLocale,
+    messages,
+    modifiers,
+    pluralRules,
+    missing,
+    missingWarn,
+    fallbackWarn,
+    fallbackFormat,
+    unresolving,
+    postTranslation,
+    processor,
+    warnHtmlMessage,
+    escapeParameter,
+    messageCompiler,
+    messageResolver,
+    localeFallbacker,
+    fallbackContext,
+    onWarn,
+    __meta
+  };
+  {
+    context.datetimeFormats = datetimeFormats;
+    context.numberFormats = numberFormats;
+    context.__datetimeFormatters = __datetimeFormatters;
+    context.__numberFormatters = __numberFormatters;
+  }
+  return context;
+}
+function handleMissing(context, key, locale, missingWarn, type2) {
+  const { missing, onWarn } = context;
+  if (missing !== null) {
+    const ret = missing(context, locale, key, type2);
+    return isString(ret) ? ret : key;
+  } else {
+    return key;
+  }
+}
+function updateFallbackLocale(ctx, locale, fallback) {
+  const context = ctx;
+  context.__localeChainCache = /* @__PURE__ */ new Map();
+  ctx.localeFallbacker(ctx, fallback, locale);
+}
+function isAlmostSameLocale(locale, compareLocale) {
+  if (locale === compareLocale)
+    return false;
+  return locale.split("-")[0] === compareLocale.split("-")[0];
+}
+function isImplicitFallback(targetLocale, locales) {
+  const index2 = locales.indexOf(targetLocale);
+  if (index2 === -1) {
+    return false;
+  }
+  for (let i = index2 + 1; i < locales.length; i++) {
+    if (isAlmostSameLocale(targetLocale, locales[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+function format(ast) {
+  const msg = (ctx) => formatParts(ctx, ast);
+  return msg;
+}
+function formatParts(ctx, ast) {
+  const body = ast.b || ast.body;
+  if ((body.t || body.type) === 1) {
+    const plural = body;
+    const cases = plural.c || plural.cases;
+    return ctx.plural(cases.reduce((messages, c) => [
+      ...messages,
+      formatMessageParts(ctx, c)
+    ], []));
+  } else {
+    return formatMessageParts(ctx, body);
+  }
+}
+function formatMessageParts(ctx, node) {
+  const _static = node.s || node.static;
+  if (_static) {
+    return ctx.type === "text" ? _static : ctx.normalize([_static]);
+  } else {
+    const messages = (node.i || node.items).reduce((acm, c) => [...acm, formatMessagePart(ctx, c)], []);
+    return ctx.normalize(messages);
+  }
+}
+function formatMessagePart(ctx, node) {
+  const type2 = node.t || node.type;
+  switch (type2) {
+    case 3: {
+      const text = node;
+      return text.v || text.value;
+    }
+    case 9: {
+      const literal = node;
+      return literal.v || literal.value;
+    }
+    case 4: {
+      const named = node;
+      return ctx.interpolate(ctx.named(named.k || named.key));
+    }
+    case 5: {
+      const list = node;
+      return ctx.interpolate(ctx.list(list.i != null ? list.i : list.index));
+    }
+    case 6: {
+      const linked = node;
+      const modifier = linked.m || linked.modifier;
+      return ctx.linked(formatMessagePart(ctx, linked.k || linked.key), modifier ? formatMessagePart(ctx, modifier) : void 0, ctx.type);
+    }
+    case 7: {
+      const linkedKey = node;
+      return linkedKey.v || linkedKey.value;
+    }
+    case 8: {
+      const linkedModifier = node;
+      return linkedModifier.v || linkedModifier.value;
+    }
+    default:
+      throw new Error(`unhandled node type on format message part: ${type2}`);
+  }
+}
+const defaultOnCacheKey = (message) => message;
+let compileCache = /* @__PURE__ */ Object.create(null);
+const isMessageAST = (val) => isObject(val) && (val.t === 0 || val.type === 0) && ("b" in val || "body" in val);
+function baseCompile(message, options = {}) {
+  let detectError = false;
+  const onError = options.onError || defaultOnError;
+  options.onError = (err) => {
+    detectError = true;
+    onError(err);
+  };
+  return { ...baseCompile$1(message, options), detectError };
+}
+function compile(message, context) {
+  if (isString(message)) {
+    isBoolean(context.warnHtmlMessage) ? context.warnHtmlMessage : true;
+    const onCacheKey = context.onCacheKey || defaultOnCacheKey;
+    const cacheKey = onCacheKey(message);
+    const cached = compileCache[cacheKey];
+    if (cached) {
+      return cached;
+    }
+    const { ast, detectError } = baseCompile(message, {
+      ...context,
+      location: "production" !== "production",
+      jit: true
+    });
+    const msg = format(ast);
+    return !detectError ? compileCache[cacheKey] = msg : msg;
+  } else {
+    const cacheKey = message.cacheKey;
+    if (cacheKey) {
+      const cached = compileCache[cacheKey];
+      if (cached) {
+        return cached;
+      }
+      return compileCache[cacheKey] = format(message);
+    } else {
+      return format(message);
+    }
+  }
+}
+const NOOP_MESSAGE_FUNCTION = () => "";
+const isMessageFunction = (val) => isFunction(val);
+function translate(context, ...args) {
+  const { fallbackFormat, postTranslation, unresolving, messageCompiler, fallbackLocale, messages } = context;
+  const [key, options] = parseTranslateArgs(...args);
+  const missingWarn = isBoolean(options.missingWarn) ? options.missingWarn : context.missingWarn;
+  const fallbackWarn = isBoolean(options.fallbackWarn) ? options.fallbackWarn : context.fallbackWarn;
+  const escapeParameter = isBoolean(options.escapeParameter) ? options.escapeParameter : context.escapeParameter;
+  const resolvedMessage = !!options.resolvedMessage;
+  const defaultMsgOrKey = isString(options.default) || isBoolean(options.default) ? !isBoolean(options.default) ? options.default : !messageCompiler ? () => key : key : fallbackFormat ? !messageCompiler ? () => key : key : "";
+  const enableDefaultMsg = fallbackFormat || defaultMsgOrKey !== "";
+  const locale = getLocale(context, options);
+  escapeParameter && escapeParams(options);
+  let [formatScope, targetLocale, message] = !resolvedMessage ? resolveMessageFormat(context, key, locale, fallbackLocale, fallbackWarn, missingWarn) : [
+    key,
+    locale,
+    messages[locale] || {}
+  ];
+  let format2 = formatScope;
+  let cacheBaseKey = key;
+  if (!resolvedMessage && !(isString(format2) || isMessageAST(format2) || isMessageFunction(format2))) {
+    if (enableDefaultMsg) {
+      format2 = defaultMsgOrKey;
+      cacheBaseKey = format2;
+    }
+  }
+  if (!resolvedMessage && (!(isString(format2) || isMessageAST(format2) || isMessageFunction(format2)) || !isString(targetLocale))) {
+    return unresolving ? NOT_REOSLVED : key;
+  }
+  let occurred = false;
+  const onError = () => {
+    occurred = true;
+  };
+  const msg = !isMessageFunction(format2) ? compileMessageFormat(context, key, targetLocale, format2, cacheBaseKey, onError) : format2;
+  if (occurred) {
+    return format2;
+  }
+  const ctxOptions = getMessageContextOptions(context, targetLocale, message, options);
+  const msgContext = createMessageContext(ctxOptions);
+  const messaged = evaluateMessage(context, msg, msgContext);
+  const ret = postTranslation ? postTranslation(messaged, key) : messaged;
+  return ret;
+}
+function escapeParams(options) {
+  if (isArray(options.list)) {
+    options.list = options.list.map((item) => isString(item) ? escapeHtml(item) : item);
+  } else if (isObject(options.named)) {
+    Object.keys(options.named).forEach((key) => {
+      if (isString(options.named[key])) {
+        options.named[key] = escapeHtml(options.named[key]);
+      }
+    });
+  }
+}
+function resolveMessageFormat(context, key, locale, fallbackLocale, fallbackWarn, missingWarn) {
+  const { messages, onWarn, messageResolver: resolveValue2, localeFallbacker } = context;
+  const locales = localeFallbacker(context, fallbackLocale, locale);
+  let message = {};
+  let targetLocale;
+  let format2 = null;
+  const type2 = "translate";
+  for (let i = 0; i < locales.length; i++) {
+    targetLocale = locales[i];
+    message = messages[targetLocale] || {};
+    if ((format2 = resolveValue2(message, key)) === null) {
+      format2 = message[key];
+    }
+    if (isString(format2) || isMessageAST(format2) || isMessageFunction(format2)) {
+      break;
+    }
+    if (!isImplicitFallback(targetLocale, locales)) {
+      const missingRet = handleMissing(
+        context,
+        // eslint-disable-line @typescript-eslint/no-explicit-any
+        key,
+        targetLocale,
+        missingWarn,
+        type2
+      );
+      if (missingRet !== key) {
+        format2 = missingRet;
+      }
+    }
+  }
+  return [format2, targetLocale, message];
+}
+function compileMessageFormat(context, key, targetLocale, format2, cacheBaseKey, onError) {
+  const { messageCompiler, warnHtmlMessage } = context;
+  if (isMessageFunction(format2)) {
+    const msg2 = format2;
+    msg2.locale = msg2.locale || targetLocale;
+    msg2.key = msg2.key || key;
+    return msg2;
+  }
+  if (messageCompiler == null) {
+    const msg2 = () => format2;
+    msg2.locale = targetLocale;
+    msg2.key = key;
+    return msg2;
+  }
+  const msg = messageCompiler(format2, getCompileContext(context, targetLocale, cacheBaseKey, format2, warnHtmlMessage, onError));
+  msg.locale = targetLocale;
+  msg.key = key;
+  msg.source = format2;
+  return msg;
+}
+function evaluateMessage(context, msg, msgCtx) {
+  const messaged = msg(msgCtx);
+  return messaged;
+}
+function parseTranslateArgs(...args) {
+  const [arg1, arg2, arg3] = args;
+  const options = {};
+  if (!isString(arg1) && !isNumber(arg1) && !isMessageFunction(arg1) && !isMessageAST(arg1)) {
+    throw createCoreError(CoreErrorCodes.INVALID_ARGUMENT);
+  }
+  const key = isNumber(arg1) ? String(arg1) : isMessageFunction(arg1) ? arg1 : arg1;
+  if (isNumber(arg2)) {
+    options.plural = arg2;
+  } else if (isString(arg2)) {
+    options.default = arg2;
+  } else if (isPlainObject(arg2) && !isEmptyObject(arg2)) {
+    options.named = arg2;
+  } else if (isArray(arg2)) {
+    options.list = arg2;
+  }
+  if (isNumber(arg3)) {
+    options.plural = arg3;
+  } else if (isString(arg3)) {
+    options.default = arg3;
+  } else if (isPlainObject(arg3)) {
+    assign(options, arg3);
+  }
+  return [key, options];
+}
+function getCompileContext(context, locale, key, source, warnHtmlMessage, onError) {
+  return {
+    locale,
+    key,
+    warnHtmlMessage,
+    onError: (err) => {
+      onError && onError(err);
+      {
+        throw err;
+      }
+    },
+    onCacheKey: (source2) => generateFormatCacheKey(locale, key, source2)
+  };
+}
+function getMessageContextOptions(context, locale, message, options) {
+  const { modifiers, pluralRules, messageResolver: resolveValue2, fallbackLocale, fallbackWarn, missingWarn, fallbackContext } = context;
+  const resolveMessage = (key) => {
+    let val = resolveValue2(message, key);
+    if (val == null && fallbackContext) {
+      const [, , message2] = resolveMessageFormat(fallbackContext, key, locale, fallbackLocale, fallbackWarn, missingWarn);
+      val = resolveValue2(message2, key);
+    }
+    if (isString(val) || isMessageAST(val)) {
+      let occurred = false;
+      const onError = () => {
+        occurred = true;
+      };
+      const msg = compileMessageFormat(context, key, locale, val, key, onError);
+      return !occurred ? msg : NOOP_MESSAGE_FUNCTION;
+    } else if (isMessageFunction(val)) {
+      return val;
+    } else {
+      return NOOP_MESSAGE_FUNCTION;
+    }
+  };
+  const ctxOptions = {
+    locale,
+    modifiers,
+    pluralRules,
+    messages: resolveMessage
+  };
+  if (context.processor) {
+    ctxOptions.processor = context.processor;
+  }
+  if (options.list) {
+    ctxOptions.list = options.list;
+  }
+  if (options.named) {
+    ctxOptions.named = options.named;
+  }
+  if (isNumber(options.plural)) {
+    ctxOptions.pluralIndex = options.plural;
+  }
+  return ctxOptions;
+}
+function datetime(context, ...args) {
+  const { datetimeFormats, unresolving, fallbackLocale, onWarn, localeFallbacker } = context;
+  const { __datetimeFormatters } = context;
+  const [key, value, options, overrides] = parseDateTimeArgs(...args);
+  const missingWarn = isBoolean(options.missingWarn) ? options.missingWarn : context.missingWarn;
+  isBoolean(options.fallbackWarn) ? options.fallbackWarn : context.fallbackWarn;
+  const part = !!options.part;
+  const locale = getLocale(context, options);
+  const locales = localeFallbacker(
+    context,
+    // eslint-disable-line @typescript-eslint/no-explicit-any
+    fallbackLocale,
+    locale
+  );
+  if (!isString(key) || key === "") {
+    return new Intl.DateTimeFormat(locale, overrides).format(value);
+  }
+  let datetimeFormat = {};
+  let targetLocale;
+  let format2 = null;
+  const type2 = "datetime format";
+  for (let i = 0; i < locales.length; i++) {
+    targetLocale = locales[i];
+    datetimeFormat = datetimeFormats[targetLocale] || {};
+    format2 = datetimeFormat[key];
+    if (isPlainObject(format2))
+      break;
+    handleMissing(context, key, targetLocale, missingWarn, type2);
+  }
+  if (!isPlainObject(format2) || !isString(targetLocale)) {
+    return unresolving ? NOT_REOSLVED : key;
+  }
+  let id = `${targetLocale}__${key}`;
+  if (!isEmptyObject(overrides)) {
+    id = `${id}__${JSON.stringify(overrides)}`;
+  }
+  let formatter = __datetimeFormatters.get(id);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(targetLocale, assign({}, format2, overrides));
+    __datetimeFormatters.set(id, formatter);
+  }
+  return !part ? formatter.format(value) : formatter.formatToParts(value);
+}
+const DATETIME_FORMAT_OPTIONS_KEYS = [
+  "localeMatcher",
+  "weekday",
+  "era",
+  "year",
+  "month",
+  "day",
+  "hour",
+  "minute",
+  "second",
+  "timeZoneName",
+  "formatMatcher",
+  "hour12",
+  "timeZone",
+  "dateStyle",
+  "timeStyle",
+  "calendar",
+  "dayPeriod",
+  "numberingSystem",
+  "hourCycle",
+  "fractionalSecondDigits"
+];
+function parseDateTimeArgs(...args) {
+  const [arg1, arg2, arg3, arg4] = args;
+  const options = {};
+  let overrides = {};
+  let value;
+  if (isString(arg1)) {
+    const matches = arg1.match(/(\d{4}-\d{2}-\d{2})(T|\s)?(.*)/);
+    if (!matches) {
+      throw createCoreError(CoreErrorCodes.INVALID_ISO_DATE_ARGUMENT);
+    }
+    const dateTime = matches[3] ? matches[3].trim().startsWith("T") ? `${matches[1].trim()}${matches[3].trim()}` : `${matches[1].trim()}T${matches[3].trim()}` : matches[1].trim();
+    value = new Date(dateTime);
+    try {
+      value.toISOString();
+    } catch (e) {
+      throw createCoreError(CoreErrorCodes.INVALID_ISO_DATE_ARGUMENT);
+    }
+  } else if (isDate(arg1)) {
+    if (isNaN(arg1.getTime())) {
+      throw createCoreError(CoreErrorCodes.INVALID_DATE_ARGUMENT);
+    }
+    value = arg1;
+  } else if (isNumber(arg1)) {
+    value = arg1;
+  } else {
+    throw createCoreError(CoreErrorCodes.INVALID_ARGUMENT);
+  }
+  if (isString(arg2)) {
+    options.key = arg2;
+  } else if (isPlainObject(arg2)) {
+    Object.keys(arg2).forEach((key) => {
+      if (DATETIME_FORMAT_OPTIONS_KEYS.includes(key)) {
+        overrides[key] = arg2[key];
+      } else {
+        options[key] = arg2[key];
+      }
+    });
+  }
+  if (isString(arg3)) {
+    options.locale = arg3;
+  } else if (isPlainObject(arg3)) {
+    overrides = arg3;
+  }
+  if (isPlainObject(arg4)) {
+    overrides = arg4;
+  }
+  return [options.key || "", value, options, overrides];
+}
+function clearDateTimeFormat(ctx, locale, format2) {
+  const context = ctx;
+  for (const key in format2) {
+    const id = `${locale}__${key}`;
+    if (!context.__datetimeFormatters.has(id)) {
+      continue;
+    }
+    context.__datetimeFormatters.delete(id);
+  }
+}
+function number(context, ...args) {
+  const { numberFormats, unresolving, fallbackLocale, onWarn, localeFallbacker } = context;
+  const { __numberFormatters } = context;
+  const [key, value, options, overrides] = parseNumberArgs(...args);
+  const missingWarn = isBoolean(options.missingWarn) ? options.missingWarn : context.missingWarn;
+  isBoolean(options.fallbackWarn) ? options.fallbackWarn : context.fallbackWarn;
+  const part = !!options.part;
+  const locale = getLocale(context, options);
+  const locales = localeFallbacker(
+    context,
+    // eslint-disable-line @typescript-eslint/no-explicit-any
+    fallbackLocale,
+    locale
+  );
+  if (!isString(key) || key === "") {
+    return new Intl.NumberFormat(locale, overrides).format(value);
+  }
+  let numberFormat = {};
+  let targetLocale;
+  let format2 = null;
+  const type2 = "number format";
+  for (let i = 0; i < locales.length; i++) {
+    targetLocale = locales[i];
+    numberFormat = numberFormats[targetLocale] || {};
+    format2 = numberFormat[key];
+    if (isPlainObject(format2))
+      break;
+    handleMissing(context, key, targetLocale, missingWarn, type2);
+  }
+  if (!isPlainObject(format2) || !isString(targetLocale)) {
+    return unresolving ? NOT_REOSLVED : key;
+  }
+  let id = `${targetLocale}__${key}`;
+  if (!isEmptyObject(overrides)) {
+    id = `${id}__${JSON.stringify(overrides)}`;
+  }
+  let formatter = __numberFormatters.get(id);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(targetLocale, assign({}, format2, overrides));
+    __numberFormatters.set(id, formatter);
+  }
+  return !part ? formatter.format(value) : formatter.formatToParts(value);
+}
+const NUMBER_FORMAT_OPTIONS_KEYS = [
+  "localeMatcher",
+  "style",
+  "currency",
+  "currencyDisplay",
+  "currencySign",
+  "useGrouping",
+  "minimumIntegerDigits",
+  "minimumFractionDigits",
+  "maximumFractionDigits",
+  "minimumSignificantDigits",
+  "maximumSignificantDigits",
+  "compactDisplay",
+  "notation",
+  "signDisplay",
+  "unit",
+  "unitDisplay",
+  "roundingMode",
+  "roundingPriority",
+  "roundingIncrement",
+  "trailingZeroDisplay"
+];
+function parseNumberArgs(...args) {
+  const [arg1, arg2, arg3, arg4] = args;
+  const options = {};
+  let overrides = {};
+  if (!isNumber(arg1)) {
+    throw createCoreError(CoreErrorCodes.INVALID_ARGUMENT);
+  }
+  const value = arg1;
+  if (isString(arg2)) {
+    options.key = arg2;
+  } else if (isPlainObject(arg2)) {
+    Object.keys(arg2).forEach((key) => {
+      if (NUMBER_FORMAT_OPTIONS_KEYS.includes(key)) {
+        overrides[key] = arg2[key];
+      } else {
+        options[key] = arg2[key];
+      }
+    });
+  }
+  if (isString(arg3)) {
+    options.locale = arg3;
+  } else if (isPlainObject(arg3)) {
+    overrides = arg3;
+  }
+  if (isPlainObject(arg4)) {
+    overrides = arg4;
+  }
+  return [options.key || "", value, options, overrides];
+}
+function clearNumberFormat(ctx, locale, format2) {
+  const context = ctx;
+  for (const key in format2) {
+    const id = `${locale}__${key}`;
+    if (!context.__numberFormatters.has(id)) {
+      continue;
+    }
+    context.__numberFormatters.delete(id);
+  }
+}
+/*!
+  * vue-i18n v9.14.1
+  * (c) 2024 kazuya kawaguchi
+  * Released under the MIT License.
+  */
+const VERSION = "9.14.1";
+const code$1 = CoreWarnCodes.__EXTEND_POINT__;
+const inc$1 = incrementer(code$1);
+({
+  FALLBACK_TO_ROOT: code$1,
+  // 9
+  NOT_SUPPORTED_PRESERVE: inc$1(),
+  // 10
+  NOT_SUPPORTED_FORMATTER: inc$1(),
+  // 11
+  NOT_SUPPORTED_PRESERVE_DIRECTIVE: inc$1(),
+  // 12
+  NOT_SUPPORTED_GET_CHOICE_INDEX: inc$1(),
+  // 13
+  COMPONENT_NAME_LEGACY_COMPATIBLE: inc$1(),
+  // 14
+  NOT_FOUND_PARENT_SCOPE: inc$1(),
+  // 15
+  IGNORE_OBJ_FLATTEN: inc$1(),
+  // 16
+  NOTICE_DROP_ALLOW_COMPOSITION: inc$1(),
+  // 17
+  NOTICE_DROP_TRANSLATE_EXIST_COMPATIBLE_FLAG: inc$1()
+  // 18
+});
+const code = CoreErrorCodes.__EXTEND_POINT__;
+const inc = incrementer(code);
+const I18nErrorCodes = {
+  // composer module errors
+  UNEXPECTED_RETURN_TYPE: code,
+  // 24
+  // legacy module errors
+  INVALID_ARGUMENT: inc(),
+  // 25
+  // i18n module errors
+  MUST_BE_CALL_SETUP_TOP: inc(),
+  // 26
+  NOT_INSTALLED: inc(),
+  // 27
+  NOT_AVAILABLE_IN_LEGACY_MODE: inc(),
+  // 28
+  // directive module errors
+  REQUIRED_VALUE: inc(),
+  // 29
+  INVALID_VALUE: inc(),
+  // 30
+  // vue-devtools errors
+  CANNOT_SETUP_VUE_DEVTOOLS_PLUGIN: inc(),
+  // 31
+  NOT_INSTALLED_WITH_PROVIDE: inc(),
+  // 32
+  // unexpected error
+  UNEXPECTED_ERROR: inc(),
+  // 33
+  // not compatible legacy vue-i18n constructor
+  NOT_COMPATIBLE_LEGACY_VUE_I18N: inc(),
+  // 34
+  // bridge support vue 2.x only
+  BRIDGE_SUPPORT_VUE_2_ONLY: inc(),
+  // 35
+  // need to define `i18n` option in `allowComposition: true` and `useScope: 'local' at `useI18n``
+  MUST_DEFINE_I18N_OPTION_IN_ALLOW_COMPOSITION: inc(),
+  // 36
+  // Not available Compostion API in Legacy API mode. Please make sure that the legacy API mode is working properly
+  NOT_AVAILABLE_COMPOSITION_IN_LEGACY: inc(),
+  // 37
+  // for enhancement
+  __EXTEND_POINT__: inc()
+  // 38
+};
+function createI18nError(code2, ...args) {
+  return createCompileError(code2, null, void 0);
+}
+const TranslateVNodeSymbol = /* @__PURE__ */ makeSymbol("__translateVNode");
+const DatetimePartsSymbol = /* @__PURE__ */ makeSymbol("__datetimeParts");
+const NumberPartsSymbol = /* @__PURE__ */ makeSymbol("__numberParts");
+const SetPluralRulesSymbol = makeSymbol("__setPluralRules");
+const InejctWithOptionSymbol = /* @__PURE__ */ makeSymbol("__injectWithOption");
+const DisposeSymbol = /* @__PURE__ */ makeSymbol("__dispose");
+function handleFlatJson(obj) {
+  if (!isObject(obj)) {
+    return obj;
+  }
+  for (const key in obj) {
+    if (!hasOwn(obj, key)) {
+      continue;
+    }
+    if (!key.includes(".")) {
+      if (isObject(obj[key])) {
+        handleFlatJson(obj[key]);
+      }
+    } else {
+      const subKeys = key.split(".");
+      const lastIndex = subKeys.length - 1;
+      let currentObj = obj;
+      let hasStringValue = false;
+      for (let i = 0; i < lastIndex; i++) {
+        if (!(subKeys[i] in currentObj)) {
+          currentObj[subKeys[i]] = {};
+        }
+        if (!isObject(currentObj[subKeys[i]])) {
+          hasStringValue = true;
+          break;
+        }
+        currentObj = currentObj[subKeys[i]];
+      }
+      if (!hasStringValue) {
+        currentObj[subKeys[lastIndex]] = obj[key];
+        delete obj[key];
+      }
+      if (isObject(currentObj[subKeys[lastIndex]])) {
+        handleFlatJson(currentObj[subKeys[lastIndex]]);
+      }
+    }
+  }
+  return obj;
+}
+function getLocaleMessages(locale, options) {
+  const { messages, __i18n, messageResolver, flatJson } = options;
+  const ret = isPlainObject(messages) ? messages : isArray(__i18n) ? {} : { [locale]: {} };
+  if (isArray(__i18n)) {
+    __i18n.forEach((custom) => {
+      if ("locale" in custom && "resource" in custom) {
+        const { locale: locale2, resource: resource2 } = custom;
+        if (locale2) {
+          ret[locale2] = ret[locale2] || {};
+          deepCopy(resource2, ret[locale2]);
+        } else {
+          deepCopy(resource2, ret);
+        }
+      } else {
+        isString(custom) && deepCopy(JSON.parse(custom), ret);
+      }
+    });
+  }
+  if (messageResolver == null && flatJson) {
+    for (const key in ret) {
+      if (hasOwn(ret, key)) {
+        handleFlatJson(ret[key]);
+      }
+    }
+  }
+  return ret;
+}
+function getComponentOptions(instance) {
+  return instance.type;
+}
+function adjustI18nResources(gl, options, componentOptions) {
+  let messages = isObject(options.messages) ? options.messages : {};
+  if ("__i18nGlobal" in componentOptions) {
+    messages = getLocaleMessages(gl.locale.value, {
+      messages,
+      __i18n: componentOptions.__i18nGlobal
+    });
+  }
+  const locales = Object.keys(messages);
+  if (locales.length) {
+    locales.forEach((locale) => {
+      gl.mergeLocaleMessage(locale, messages[locale]);
+    });
+  }
+  {
+    if (isObject(options.datetimeFormats)) {
+      const locales2 = Object.keys(options.datetimeFormats);
+      if (locales2.length) {
+        locales2.forEach((locale) => {
+          gl.mergeDateTimeFormat(locale, options.datetimeFormats[locale]);
+        });
+      }
+    }
+    if (isObject(options.numberFormats)) {
+      const locales2 = Object.keys(options.numberFormats);
+      if (locales2.length) {
+        locales2.forEach((locale) => {
+          gl.mergeNumberFormat(locale, options.numberFormats[locale]);
+        });
+      }
+    }
+  }
+}
+function createTextNode(key) {
+  return createVNode(Text, null, key, 0);
+}
+const DEVTOOLS_META = "__INTLIFY_META__";
+const NOOP_RETURN_ARRAY = () => [];
+const NOOP_RETURN_FALSE = () => false;
+let composerID = 0;
+function defineCoreMissingHandler(missing) {
+  return (ctx, locale, key, type2) => {
+    return missing(locale, key, getCurrentInstance() || void 0, type2);
+  };
+}
+const getMetaInfo = /* @__NO_SIDE_EFFECTS__ */ () => {
+  const instance = getCurrentInstance();
+  let meta = null;
+  return instance && (meta = getComponentOptions(instance)[DEVTOOLS_META]) ? { [DEVTOOLS_META]: meta } : null;
+};
+function createComposer(options = {}, VueI18nLegacy) {
+  const { __root, __injectWithOption } = options;
+  const _isGlobal = __root === void 0;
+  const flatJson = options.flatJson;
+  const _ref = shallowRef;
+  const translateExistCompatible = !!options.translateExistCompatible;
+  let _inheritLocale = isBoolean(options.inheritLocale) ? options.inheritLocale : true;
+  const _locale = _ref(
+    // prettier-ignore
+    __root && _inheritLocale ? __root.locale.value : isString(options.locale) ? options.locale : DEFAULT_LOCALE
+  );
+  const _fallbackLocale = _ref(
+    // prettier-ignore
+    __root && _inheritLocale ? __root.fallbackLocale.value : isString(options.fallbackLocale) || isArray(options.fallbackLocale) || isPlainObject(options.fallbackLocale) || options.fallbackLocale === false ? options.fallbackLocale : _locale.value
+  );
+  const _messages = _ref(getLocaleMessages(_locale.value, options));
+  const _datetimeFormats = _ref(isPlainObject(options.datetimeFormats) ? options.datetimeFormats : { [_locale.value]: {} });
+  const _numberFormats = _ref(isPlainObject(options.numberFormats) ? options.numberFormats : { [_locale.value]: {} });
+  let _missingWarn = __root ? __root.missingWarn : isBoolean(options.missingWarn) || isRegExp(options.missingWarn) ? options.missingWarn : true;
+  let _fallbackWarn = __root ? __root.fallbackWarn : isBoolean(options.fallbackWarn) || isRegExp(options.fallbackWarn) ? options.fallbackWarn : true;
+  let _fallbackRoot = __root ? __root.fallbackRoot : isBoolean(options.fallbackRoot) ? options.fallbackRoot : true;
+  let _fallbackFormat = !!options.fallbackFormat;
+  let _missing = isFunction(options.missing) ? options.missing : null;
+  let _runtimeMissing = isFunction(options.missing) ? defineCoreMissingHandler(options.missing) : null;
+  let _postTranslation = isFunction(options.postTranslation) ? options.postTranslation : null;
+  let _warnHtmlMessage = __root ? __root.warnHtmlMessage : isBoolean(options.warnHtmlMessage) ? options.warnHtmlMessage : true;
+  let _escapeParameter = !!options.escapeParameter;
+  const _modifiers = __root ? __root.modifiers : isPlainObject(options.modifiers) ? options.modifiers : {};
+  let _pluralRules = options.pluralRules || __root && __root.pluralRules;
+  let _context;
+  const getCoreContext = () => {
+    _isGlobal && setFallbackContext(null);
+    const ctxOptions = {
+      version: VERSION,
+      locale: _locale.value,
+      fallbackLocale: _fallbackLocale.value,
+      messages: _messages.value,
+      modifiers: _modifiers,
+      pluralRules: _pluralRules,
+      missing: _runtimeMissing === null ? void 0 : _runtimeMissing,
+      missingWarn: _missingWarn,
+      fallbackWarn: _fallbackWarn,
+      fallbackFormat: _fallbackFormat,
+      unresolving: true,
+      postTranslation: _postTranslation === null ? void 0 : _postTranslation,
+      warnHtmlMessage: _warnHtmlMessage,
+      escapeParameter: _escapeParameter,
+      messageResolver: options.messageResolver,
+      messageCompiler: options.messageCompiler,
+      __meta: { framework: "vue" }
+    };
+    {
+      ctxOptions.datetimeFormats = _datetimeFormats.value;
+      ctxOptions.numberFormats = _numberFormats.value;
+      ctxOptions.__datetimeFormatters = isPlainObject(_context) ? _context.__datetimeFormatters : void 0;
+      ctxOptions.__numberFormatters = isPlainObject(_context) ? _context.__numberFormatters : void 0;
+    }
+    const ctx = createCoreContext(ctxOptions);
+    _isGlobal && setFallbackContext(ctx);
+    return ctx;
+  };
+  _context = getCoreContext();
+  updateFallbackLocale(_context, _locale.value, _fallbackLocale.value);
+  function trackReactivityValues() {
+    return [
+      _locale.value,
+      _fallbackLocale.value,
+      _messages.value,
+      _datetimeFormats.value,
+      _numberFormats.value
+    ];
+  }
+  const locale = computed({
+    get: () => _locale.value,
+    set: (val) => {
+      _locale.value = val;
+      _context.locale = _locale.value;
+    }
+  });
+  const fallbackLocale = computed({
+    get: () => _fallbackLocale.value,
+    set: (val) => {
+      _fallbackLocale.value = val;
+      _context.fallbackLocale = _fallbackLocale.value;
+      updateFallbackLocale(_context, _locale.value, val);
+    }
+  });
+  const messages = computed(() => _messages.value);
+  const datetimeFormats = /* @__PURE__ */ computed(() => _datetimeFormats.value);
+  const numberFormats = /* @__PURE__ */ computed(() => _numberFormats.value);
+  function getPostTranslationHandler() {
+    return isFunction(_postTranslation) ? _postTranslation : null;
+  }
+  function setPostTranslationHandler(handler) {
+    _postTranslation = handler;
+    _context.postTranslation = handler;
+  }
+  function getMissingHandler() {
+    return _missing;
+  }
+  function setMissingHandler(handler) {
+    if (handler !== null) {
+      _runtimeMissing = defineCoreMissingHandler(handler);
+    }
+    _missing = handler;
+    _context.missing = _runtimeMissing;
+  }
+  const wrapWithDeps = (fn, argumentParser, warnType, fallbackSuccess, fallbackFail, successCondition) => {
+    trackReactivityValues();
+    let ret;
+    try {
+      if ("production" !== "production" || false) ;
+      if (!_isGlobal) {
+        _context.fallbackContext = __root ? getFallbackContext() : void 0;
+      }
+      ret = fn(_context);
+    } finally {
+      if (!_isGlobal) {
+        _context.fallbackContext = void 0;
+      }
+    }
+    if (warnType !== "translate exists" && // for not `te` (e.g `t`)
+    isNumber(ret) && ret === NOT_REOSLVED || warnType === "translate exists" && !ret) {
+      const [key, arg2] = argumentParser();
+      return __root && _fallbackRoot ? fallbackSuccess(__root) : fallbackFail(key);
+    } else if (successCondition(ret)) {
+      return ret;
+    } else {
+      throw createI18nError(I18nErrorCodes.UNEXPECTED_RETURN_TYPE);
+    }
+  };
+  function t(...args) {
+    return wrapWithDeps((context) => Reflect.apply(translate, null, [context, ...args]), () => parseTranslateArgs(...args), "translate", (root) => Reflect.apply(root.t, root, [...args]), (key) => key, (val) => isString(val));
+  }
+  function rt(...args) {
+    const [arg1, arg2, arg3] = args;
+    if (arg3 && !isObject(arg3)) {
+      throw createI18nError(I18nErrorCodes.INVALID_ARGUMENT);
+    }
+    return t(...[arg1, arg2, assign({ resolvedMessage: true }, arg3 || {})]);
+  }
+  function d(...args) {
+    return wrapWithDeps((context) => Reflect.apply(datetime, null, [context, ...args]), () => parseDateTimeArgs(...args), "datetime format", (root) => Reflect.apply(root.d, root, [...args]), () => MISSING_RESOLVE_VALUE, (val) => isString(val));
+  }
+  function n(...args) {
+    return wrapWithDeps((context) => Reflect.apply(number, null, [context, ...args]), () => parseNumberArgs(...args), "number format", (root) => Reflect.apply(root.n, root, [...args]), () => MISSING_RESOLVE_VALUE, (val) => isString(val));
+  }
+  function normalize(values) {
+    return values.map((val) => isString(val) || isNumber(val) || isBoolean(val) ? createTextNode(String(val)) : val);
+  }
+  const interpolate = (val) => val;
+  const processor = {
+    normalize,
+    interpolate,
+    type: "vnode"
+  };
+  function translateVNode(...args) {
+    return wrapWithDeps(
+      (context) => {
+        let ret;
+        const _context2 = context;
+        try {
+          _context2.processor = processor;
+          ret = Reflect.apply(translate, null, [_context2, ...args]);
+        } finally {
+          _context2.processor = null;
+        }
+        return ret;
+      },
+      () => parseTranslateArgs(...args),
+      "translate",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (root) => root[TranslateVNodeSymbol](...args),
+      (key) => [createTextNode(key)],
+      (val) => isArray(val)
+    );
+  }
+  function numberParts(...args) {
+    return wrapWithDeps(
+      (context) => Reflect.apply(number, null, [context, ...args]),
+      () => parseNumberArgs(...args),
+      "number format",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (root) => root[NumberPartsSymbol](...args),
+      NOOP_RETURN_ARRAY,
+      (val) => isString(val) || isArray(val)
+    );
+  }
+  function datetimeParts(...args) {
+    return wrapWithDeps(
+      (context) => Reflect.apply(datetime, null, [context, ...args]),
+      () => parseDateTimeArgs(...args),
+      "datetime format",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (root) => root[DatetimePartsSymbol](...args),
+      NOOP_RETURN_ARRAY,
+      (val) => isString(val) || isArray(val)
+    );
+  }
+  function setPluralRules(rules) {
+    _pluralRules = rules;
+    _context.pluralRules = _pluralRules;
+  }
+  function te(key, locale2) {
+    return wrapWithDeps(() => {
+      if (!key) {
+        return false;
+      }
+      const targetLocale = isString(locale2) ? locale2 : _locale.value;
+      const message = getLocaleMessage(targetLocale);
+      const resolved = _context.messageResolver(message, key);
+      return !translateExistCompatible ? isMessageAST(resolved) || isMessageFunction(resolved) || isString(resolved) : resolved != null;
+    }, () => [key], "translate exists", (root) => {
+      return Reflect.apply(root.te, root, [key, locale2]);
+    }, NOOP_RETURN_FALSE, (val) => isBoolean(val));
+  }
+  function resolveMessages(key) {
+    let messages2 = null;
+    const locales = fallbackWithLocaleChain(_context, _fallbackLocale.value, _locale.value);
+    for (let i = 0; i < locales.length; i++) {
+      const targetLocaleMessages = _messages.value[locales[i]] || {};
+      const messageValue = _context.messageResolver(targetLocaleMessages, key);
+      if (messageValue != null) {
+        messages2 = messageValue;
+        break;
+      }
+    }
+    return messages2;
+  }
+  function tm(key) {
+    const messages2 = resolveMessages(key);
+    return messages2 != null ? messages2 : __root ? __root.tm(key) || {} : {};
+  }
+  function getLocaleMessage(locale2) {
+    return _messages.value[locale2] || {};
+  }
+  function setLocaleMessage(locale2, message) {
+    if (flatJson) {
+      const _message = { [locale2]: message };
+      for (const key in _message) {
+        if (hasOwn(_message, key)) {
+          handleFlatJson(_message[key]);
+        }
+      }
+      message = _message[locale2];
+    }
+    _messages.value[locale2] = message;
+    _context.messages = _messages.value;
+  }
+  function mergeLocaleMessage2(locale2, message) {
+    _messages.value[locale2] = _messages.value[locale2] || {};
+    const _message = { [locale2]: message };
+    if (flatJson) {
+      for (const key in _message) {
+        if (hasOwn(_message, key)) {
+          handleFlatJson(_message[key]);
+        }
+      }
+    }
+    message = _message[locale2];
+    deepCopy(message, _messages.value[locale2]);
+    _context.messages = _messages.value;
+  }
+  function getDateTimeFormat(locale2) {
+    return _datetimeFormats.value[locale2] || {};
+  }
+  function setDateTimeFormat(locale2, format2) {
+    _datetimeFormats.value[locale2] = format2;
+    _context.datetimeFormats = _datetimeFormats.value;
+    clearDateTimeFormat(_context, locale2, format2);
+  }
+  function mergeDateTimeFormat(locale2, format2) {
+    _datetimeFormats.value[locale2] = assign(_datetimeFormats.value[locale2] || {}, format2);
+    _context.datetimeFormats = _datetimeFormats.value;
+    clearDateTimeFormat(_context, locale2, format2);
+  }
+  function getNumberFormat(locale2) {
+    return _numberFormats.value[locale2] || {};
+  }
+  function setNumberFormat(locale2, format2) {
+    _numberFormats.value[locale2] = format2;
+    _context.numberFormats = _numberFormats.value;
+    clearNumberFormat(_context, locale2, format2);
+  }
+  function mergeNumberFormat(locale2, format2) {
+    _numberFormats.value[locale2] = assign(_numberFormats.value[locale2] || {}, format2);
+    _context.numberFormats = _numberFormats.value;
+    clearNumberFormat(_context, locale2, format2);
+  }
+  composerID++;
+  if (__root && inBrowser) {
+    watch(__root.locale, (val) => {
+      if (_inheritLocale) {
+        _locale.value = val;
+        _context.locale = val;
+        updateFallbackLocale(_context, _locale.value, _fallbackLocale.value);
+      }
+    });
+    watch(__root.fallbackLocale, (val) => {
+      if (_inheritLocale) {
+        _fallbackLocale.value = val;
+        _context.fallbackLocale = val;
+        updateFallbackLocale(_context, _locale.value, _fallbackLocale.value);
+      }
+    });
+  }
+  const composer = {
+    id: composerID,
+    locale,
+    fallbackLocale,
+    get inheritLocale() {
+      return _inheritLocale;
+    },
+    set inheritLocale(val) {
+      _inheritLocale = val;
+      if (val && __root) {
+        _locale.value = __root.locale.value;
+        _fallbackLocale.value = __root.fallbackLocale.value;
+        updateFallbackLocale(_context, _locale.value, _fallbackLocale.value);
+      }
+    },
+    get availableLocales() {
+      return Object.keys(_messages.value).sort();
+    },
+    messages,
+    get modifiers() {
+      return _modifiers;
+    },
+    get pluralRules() {
+      return _pluralRules || {};
+    },
+    get isGlobal() {
+      return _isGlobal;
+    },
+    get missingWarn() {
+      return _missingWarn;
+    },
+    set missingWarn(val) {
+      _missingWarn = val;
+      _context.missingWarn = _missingWarn;
+    },
+    get fallbackWarn() {
+      return _fallbackWarn;
+    },
+    set fallbackWarn(val) {
+      _fallbackWarn = val;
+      _context.fallbackWarn = _fallbackWarn;
+    },
+    get fallbackRoot() {
+      return _fallbackRoot;
+    },
+    set fallbackRoot(val) {
+      _fallbackRoot = val;
+    },
+    get fallbackFormat() {
+      return _fallbackFormat;
+    },
+    set fallbackFormat(val) {
+      _fallbackFormat = val;
+      _context.fallbackFormat = _fallbackFormat;
+    },
+    get warnHtmlMessage() {
+      return _warnHtmlMessage;
+    },
+    set warnHtmlMessage(val) {
+      _warnHtmlMessage = val;
+      _context.warnHtmlMessage = val;
+    },
+    get escapeParameter() {
+      return _escapeParameter;
+    },
+    set escapeParameter(val) {
+      _escapeParameter = val;
+      _context.escapeParameter = val;
+    },
+    t,
+    getLocaleMessage,
+    setLocaleMessage,
+    mergeLocaleMessage: mergeLocaleMessage2,
+    getPostTranslationHandler,
+    setPostTranslationHandler,
+    getMissingHandler,
+    setMissingHandler,
+    [SetPluralRulesSymbol]: setPluralRules
+  };
+  {
+    composer.datetimeFormats = datetimeFormats;
+    composer.numberFormats = numberFormats;
+    composer.rt = rt;
+    composer.te = te;
+    composer.tm = tm;
+    composer.d = d;
+    composer.n = n;
+    composer.getDateTimeFormat = getDateTimeFormat;
+    composer.setDateTimeFormat = setDateTimeFormat;
+    composer.mergeDateTimeFormat = mergeDateTimeFormat;
+    composer.getNumberFormat = getNumberFormat;
+    composer.setNumberFormat = setNumberFormat;
+    composer.mergeNumberFormat = mergeNumberFormat;
+    composer[InejctWithOptionSymbol] = __injectWithOption;
+    composer[TranslateVNodeSymbol] = translateVNode;
+    composer[DatetimePartsSymbol] = datetimeParts;
+    composer[NumberPartsSymbol] = numberParts;
+  }
+  return composer;
+}
+const baseFormatProps = {
+  tag: {
+    type: [String, Object]
+  },
+  locale: {
+    type: String
+  },
+  scope: {
+    type: String,
+    // NOTE: avoid https://github.com/microsoft/rushstack/issues/1050
+    validator: (val) => val === "parent" || val === "global",
+    default: "parent"
+    /* ComponentI18nScope */
+  },
+  i18n: {
+    type: Object
+  }
+};
+function getInterpolateArg({ slots }, keys) {
+  if (keys.length === 1 && keys[0] === "default") {
+    const ret = slots.default ? slots.default() : [];
+    return ret.reduce((slot, current) => {
+      return [
+        ...slot,
+        // prettier-ignore
+        ...current.type === Fragment ? current.children : [current]
+      ];
+    }, []);
+  } else {
+    return keys.reduce((arg, key) => {
+      const slot = slots[key];
+      if (slot) {
+        arg[key] = slot();
+      }
+      return arg;
+    }, {});
+  }
+}
+function getFragmentableTag(tag) {
+  return Fragment;
+}
+const TranslationImpl = /* @__PURE__ */ defineComponent({
+  /* eslint-disable */
+  name: "i18n-t",
+  props: assign({
+    keypath: {
+      type: String,
+      required: true
+    },
+    plural: {
+      type: [Number, String],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      validator: (val) => isNumber(val) || !isNaN(val)
+    }
+  }, baseFormatProps),
+  /* eslint-enable */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setup(props, context) {
+    const { slots, attrs } = context;
+    const i18n = props.i18n || useI18n({
+      useScope: props.scope,
+      __useComponent: true
+    });
+    return () => {
+      const keys = Object.keys(slots).filter((key) => key !== "_");
+      const options = {};
+      if (props.locale) {
+        options.locale = props.locale;
+      }
+      if (props.plural !== void 0) {
+        options.plural = isString(props.plural) ? +props.plural : props.plural;
+      }
+      const arg = getInterpolateArg(context, keys);
+      const children = i18n[TranslateVNodeSymbol](props.keypath, arg, options);
+      const assignedAttrs = assign({}, attrs);
+      const tag = isString(props.tag) || isObject(props.tag) ? props.tag : getFragmentableTag();
+      return h(tag, assignedAttrs, children);
+    };
+  }
+});
+const Translation = TranslationImpl;
+function isVNode(target) {
+  return isArray(target) && !isString(target[0]);
+}
+function renderFormatter(props, context, slotKeys, partFormatter) {
+  const { slots, attrs } = context;
+  return () => {
+    const options = { part: true };
+    let overrides = {};
+    if (props.locale) {
+      options.locale = props.locale;
+    }
+    if (isString(props.format)) {
+      options.key = props.format;
+    } else if (isObject(props.format)) {
+      if (isString(props.format.key)) {
+        options.key = props.format.key;
+      }
+      overrides = Object.keys(props.format).reduce((options2, prop) => {
+        return slotKeys.includes(prop) ? assign({}, options2, { [prop]: props.format[prop] }) : options2;
+      }, {});
+    }
+    const parts = partFormatter(...[props.value, options, overrides]);
+    let children = [options.key];
+    if (isArray(parts)) {
+      children = parts.map((part, index2) => {
+        const slot = slots[part.type];
+        const node = slot ? slot({ [part.type]: part.value, index: index2, parts }) : [part.value];
+        if (isVNode(node)) {
+          node[0].key = `${part.type}-${index2}`;
+        }
+        return node;
+      });
+    } else if (isString(parts)) {
+      children = [parts];
+    }
+    const assignedAttrs = assign({}, attrs);
+    const tag = isString(props.tag) || isObject(props.tag) ? props.tag : getFragmentableTag();
+    return h(tag, assignedAttrs, children);
+  };
+}
+const NumberFormatImpl = /* @__PURE__ */ defineComponent({
+  /* eslint-disable */
+  name: "i18n-n",
+  props: assign({
+    value: {
+      type: Number,
+      required: true
+    },
+    format: {
+      type: [String, Object]
+    }
+  }, baseFormatProps),
+  /* eslint-enable */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setup(props, context) {
+    const i18n = props.i18n || useI18n({
+      useScope: props.scope,
+      __useComponent: true
+    });
+    return renderFormatter(props, context, NUMBER_FORMAT_OPTIONS_KEYS, (...args) => (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      i18n[NumberPartsSymbol](...args)
+    ));
+  }
+});
+const NumberFormat = NumberFormatImpl;
+const DatetimeFormatImpl = /* @__PURE__ */ defineComponent({
+  /* eslint-disable */
+  name: "i18n-d",
+  props: assign({
+    value: {
+      type: [Number, Date],
+      required: true
+    },
+    format: {
+      type: [String, Object]
+    }
+  }, baseFormatProps),
+  /* eslint-enable */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setup(props, context) {
+    const i18n = props.i18n || useI18n({
+      useScope: props.scope,
+      __useComponent: true
+    });
+    return renderFormatter(props, context, DATETIME_FORMAT_OPTIONS_KEYS, (...args) => (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      i18n[DatetimePartsSymbol](...args)
+    ));
+  }
+});
+const DatetimeFormat = DatetimeFormatImpl;
+function getComposer$2(i18n, instance) {
+  const i18nInternal = i18n;
+  if (i18n.mode === "composition") {
+    return i18nInternal.__getInstance(instance) || i18n.global;
+  } else {
+    const vueI18n = i18nInternal.__getInstance(instance);
+    return vueI18n != null ? vueI18n.__composer : i18n.global.__composer;
+  }
+}
+function vTDirective(i18n) {
+  const _process = (binding) => {
+    const { instance, modifiers, value } = binding;
+    if (!instance || !instance.$) {
+      throw createI18nError(I18nErrorCodes.UNEXPECTED_ERROR);
+    }
+    const composer = getComposer$2(i18n, instance.$);
+    const parsedValue = parseValue(value);
+    return [
+      Reflect.apply(composer.t, composer, [...makeParams(parsedValue)]),
+      composer
+    ];
+  };
+  const register = (el, binding) => {
+    const [textContent, composer] = _process(binding);
+    el.__composer = composer;
+    el.textContent = textContent;
+  };
+  const unregister = (el) => {
+    if (el.__composer) {
+      el.__composer = void 0;
+      delete el.__composer;
+    }
+  };
+  const update = (el, { value }) => {
+    if (el.__composer) {
+      const composer = el.__composer;
+      const parsedValue = parseValue(value);
+      el.textContent = Reflect.apply(composer.t, composer, [
+        ...makeParams(parsedValue)
+      ]);
+    }
+  };
+  const getSSRProps = (binding) => {
+    const [textContent] = _process(binding);
+    return { textContent };
+  };
+  return {
+    created: register,
+    unmounted: unregister,
+    beforeUpdate: update,
+    getSSRProps
+  };
+}
+function parseValue(value) {
+  if (isString(value)) {
+    return { path: value };
+  } else if (isPlainObject(value)) {
+    if (!("path" in value)) {
+      throw createI18nError(I18nErrorCodes.REQUIRED_VALUE, "path");
+    }
+    return value;
+  } else {
+    throw createI18nError(I18nErrorCodes.INVALID_VALUE);
+  }
+}
+function makeParams(value) {
+  const { path, locale, args, choice, plural } = value;
+  const options = {};
+  const named = args || {};
+  if (isString(locale)) {
+    options.locale = locale;
+  }
+  if (isNumber(choice)) {
+    options.plural = choice;
+  }
+  if (isNumber(plural)) {
+    options.plural = plural;
+  }
+  return [path, named, options];
+}
+function apply(app, i18n, ...options) {
+  const pluginOptions = isPlainObject(options[0]) ? options[0] : {};
+  const useI18nComponentName = !!pluginOptions.useI18nComponentName;
+  const globalInstall = isBoolean(pluginOptions.globalInstall) ? pluginOptions.globalInstall : true;
+  if (globalInstall) {
+    [!useI18nComponentName ? Translation.name : "i18n", "I18nT"].forEach((name2) => app.component(name2, Translation));
+    [NumberFormat.name, "I18nN"].forEach((name2) => app.component(name2, NumberFormat));
+    [DatetimeFormat.name, "I18nD"].forEach((name2) => app.component(name2, DatetimeFormat));
+  }
+  {
+    app.directive("t", vTDirective(i18n));
+  }
+}
+const I18nInjectionKey = /* @__PURE__ */ makeSymbol("global-vue-i18n");
+function createI18n(options = {}, VueI18nLegacy) {
+  const __globalInjection = isBoolean(options.globalInjection) ? options.globalInjection : true;
+  const __allowComposition = true;
+  const __instances = /* @__PURE__ */ new Map();
+  const [globalScope, __global] = createGlobal(options);
+  const symbol = /* @__PURE__ */ makeSymbol("");
+  function __getInstance(component) {
+    return __instances.get(component) || null;
+  }
+  function __setInstance(component, instance) {
+    __instances.set(component, instance);
+  }
+  function __deleteInstance(component) {
+    __instances.delete(component);
+  }
+  {
+    const i18n = {
+      // mode
+      get mode() {
+        return "composition";
+      },
+      // allowComposition
+      get allowComposition() {
+        return __allowComposition;
+      },
+      // install plugin
+      async install(app, ...options2) {
+        app.__VUE_I18N_SYMBOL__ = symbol;
+        app.provide(app.__VUE_I18N_SYMBOL__, i18n);
+        if (isPlainObject(options2[0])) {
+          const opts = options2[0];
+          i18n.__composerExtend = opts.__composerExtend;
+          i18n.__vueI18nExtend = opts.__vueI18nExtend;
+        }
+        let globalReleaseHandler = null;
+        if (__globalInjection) {
+          globalReleaseHandler = injectGlobalFields(app, i18n.global);
+        }
+        {
+          apply(app, i18n, ...options2);
+        }
+        const unmountApp = app.unmount;
+        app.unmount = () => {
+          globalReleaseHandler && globalReleaseHandler();
+          i18n.dispose();
+          unmountApp();
+        };
+      },
+      // global accessor
+      get global() {
+        return __global;
+      },
+      dispose() {
+        globalScope.stop();
+      },
+      // @internal
+      __instances,
+      // @internal
+      __getInstance,
+      // @internal
+      __setInstance,
+      // @internal
+      __deleteInstance
+    };
+    return i18n;
+  }
+}
+function useI18n(options = {}) {
+  const instance = getCurrentInstance();
+  if (instance == null) {
+    throw createI18nError(I18nErrorCodes.MUST_BE_CALL_SETUP_TOP);
+  }
+  if (!instance.isCE && instance.appContext.app != null && !instance.appContext.app.__VUE_I18N_SYMBOL__) {
+    throw createI18nError(I18nErrorCodes.NOT_INSTALLED);
+  }
+  const i18n = getI18nInstance(instance);
+  const gl = getGlobalComposer(i18n);
+  const componentOptions = getComponentOptions(instance);
+  const scope = getScope(options, componentOptions);
+  if (scope === "global") {
+    adjustI18nResources(gl, options, componentOptions);
+    return gl;
+  }
+  if (scope === "parent") {
+    let composer2 = getComposer(i18n, instance, options.__useComponent);
+    if (composer2 == null) {
+      composer2 = gl;
+    }
+    return composer2;
+  }
+  const i18nInternal = i18n;
+  let composer = i18nInternal.__getInstance(instance);
+  if (composer == null) {
+    const composerOptions = assign({}, options);
+    if ("__i18n" in componentOptions) {
+      composerOptions.__i18n = componentOptions.__i18n;
+    }
+    if (gl) {
+      composerOptions.__root = gl;
+    }
+    composer = createComposer(composerOptions);
+    if (i18nInternal.__composerExtend) {
+      composer[DisposeSymbol] = i18nInternal.__composerExtend(composer);
+    }
+    i18nInternal.__setInstance(instance, composer);
+  }
+  return composer;
+}
+function createGlobal(options, legacyMode, VueI18nLegacy) {
+  const scope = effectScope();
+  {
+    const obj = scope.run(() => createComposer(options));
+    if (obj == null) {
+      throw createI18nError(I18nErrorCodes.UNEXPECTED_ERROR);
+    }
+    return [scope, obj];
+  }
+}
+function getI18nInstance(instance) {
+  {
+    const i18n = inject(!instance.isCE ? instance.appContext.app.__VUE_I18N_SYMBOL__ : I18nInjectionKey);
+    if (!i18n) {
+      throw createI18nError(!instance.isCE ? I18nErrorCodes.UNEXPECTED_ERROR : I18nErrorCodes.NOT_INSTALLED_WITH_PROVIDE);
+    }
+    return i18n;
+  }
+}
+function getScope(options, componentOptions) {
+  return isEmptyObject(options) ? "__i18n" in componentOptions ? "local" : "global" : !options.useScope ? "local" : options.useScope;
+}
+function getGlobalComposer(i18n) {
+  return i18n.mode === "composition" ? i18n.global : i18n.global.__composer;
+}
+function getComposer(i18n, target, useComponent = false) {
+  let composer = null;
+  const root = target.root;
+  let current = getParentComponentInstance(target, useComponent);
+  while (current != null) {
+    const i18nInternal = i18n;
+    if (i18n.mode === "composition") {
+      composer = i18nInternal.__getInstance(current);
+    }
+    if (composer != null) {
+      break;
+    }
+    if (root === current) {
+      break;
+    }
+    current = current.parent;
+  }
+  return composer;
+}
+function getParentComponentInstance(target, useComponent = false) {
+  if (target == null) {
+    return null;
+  }
+  {
+    return !useComponent ? target.parent : target.vnode.ctx || target.parent;
+  }
+}
+const globalExportProps = [
+  "locale",
+  "fallbackLocale",
+  "availableLocales"
+];
+const globalExportMethods = ["t", "rt", "d", "n", "tm", "te"];
+function injectGlobalFields(app, composer) {
+  const i18n = /* @__PURE__ */ Object.create(null);
+  globalExportProps.forEach((prop) => {
+    const desc = Object.getOwnPropertyDescriptor(composer, prop);
+    if (!desc) {
+      throw createI18nError(I18nErrorCodes.UNEXPECTED_ERROR);
+    }
+    const wrap = isRef(desc.value) ? {
+      get() {
+        return desc.value.value;
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set(val) {
+        desc.value.value = val;
+      }
+    } : {
+      get() {
+        return desc.get && desc.get();
+      }
+    };
+    Object.defineProperty(i18n, prop, wrap);
+  });
+  app.config.globalProperties.$i18n = i18n;
+  globalExportMethods.forEach((method) => {
+    const desc = Object.getOwnPropertyDescriptor(composer, method);
+    if (!desc || !desc.value) {
+      throw createI18nError(I18nErrorCodes.UNEXPECTED_ERROR);
+    }
+    Object.defineProperty(app.config.globalProperties, `$${method}`, desc);
+  });
+  const dispose = () => {
+    delete app.config.globalProperties.$i18n;
+    globalExportMethods.forEach((method) => {
+      delete app.config.globalProperties[`$${method}`];
+    });
+  };
+  return dispose;
+}
+{
+  registerMessageCompiler(compile);
+}
+registerMessageResolver(resolveValue);
+registerLocaleFallbacker(fallbackWithLocaleChain);
+function useSwitchLocalePath() {
+  return wrapComposable(switchLocalePath);
+}
+const switch_locale_path_ssr_5csfIgkrBP = /* @__PURE__ */ defineNuxtPlugin({
+  name: "i18n:plugin:switch-locale-path-ssr",
+  dependsOn: ["i18n:plugin"],
+  setup(nuxt) {
+    if (nuxt.$config.public.i18n.experimental.switchLocalePathLinkSSR !== true) return;
+    const switchLocalePath2 = useSwitchLocalePath();
+    const switchLocalePathLinkWrapperExpr = new RegExp(
+      [
+        `<!--${SWITCH_LOCALE_PATH_LINK_IDENTIFIER}-\\[(\\w+)\\]-->`,
+        `.+?`,
+        `<!--/${SWITCH_LOCALE_PATH_LINK_IDENTIFIER}-->`
+      ].join(""),
+      "g"
+    );
+    nuxt.hook("app:rendered", (ctx) => {
+      var _a;
+      if (((_a = ctx.renderResult) == null ? void 0 : _a.html) == null) return;
+      ctx.renderResult.html = ctx.renderResult.html.replaceAll(
+        switchLocalePathLinkWrapperExpr,
+        (match, p1) => match.replace(/href="([^"]+)"/, `href="${encodeURI(switchLocalePath2(p1 ?? ""))}"`)
+      );
+    });
+  }
+});
+function extendI18n(i18n, {
+  locales = [],
+  localeCodes: localeCodes2 = [],
+  baseUrl = "",
+  hooks = {},
+  context = {}
+} = {}) {
+  const scope = effectScope();
+  const orgInstall = i18n.install;
+  i18n.install = (vue, ...options) => {
+    const pluginOptions = isPluginOptions(options[0]) ? assign({}, options[0]) : { inject: true };
+    if (pluginOptions.inject == null) {
+      pluginOptions.inject = true;
+    }
+    const orgComposerExtend = pluginOptions.__composerExtend;
+    pluginOptions.__composerExtend = (localComposer) => {
+      const globalComposer2 = getComposer$3(i18n);
+      localComposer.locales = computed(() => globalComposer2.locales.value);
+      localComposer.localeCodes = computed(() => globalComposer2.localeCodes.value);
+      localComposer.baseUrl = computed(() => globalComposer2.baseUrl.value);
+      let orgComposerDispose;
+      if (isFunction(orgComposerExtend)) {
+        orgComposerDispose = Reflect.apply(orgComposerExtend, pluginOptions, [localComposer]);
+      }
+      return () => {
+        orgComposerDispose && orgComposerDispose();
+      };
+    };
+    if (i18n.mode === "legacy") {
+      const orgVueI18nExtend = pluginOptions.__vueI18nExtend;
+      pluginOptions.__vueI18nExtend = (vueI18n) => {
+        extendVueI18n(vueI18n, hooks.onExtendVueI18n);
+        let orgVueI18nDispose;
+        if (isFunction(orgVueI18nExtend)) {
+          orgVueI18nDispose = Reflect.apply(orgVueI18nExtend, pluginOptions, [vueI18n]);
+        }
+        return () => {
+          orgVueI18nDispose && orgVueI18nDispose();
+        };
+      };
+    }
+    options[0] = pluginOptions;
+    Reflect.apply(orgInstall, i18n, [vue, ...options]);
+    const globalComposer = getComposer$3(i18n);
+    scope.run(() => {
+      extendComposer(globalComposer, { locales, localeCodes: localeCodes2, baseUrl, hooks, context });
+      if (i18n.mode === "legacy" && isVueI18n(i18n.global)) {
+        extendVueI18n(i18n.global, hooks.onExtendVueI18n);
+      }
+    });
+    const app = vue;
+    const exported = i18n.mode === "composition" ? app.config.globalProperties.$i18n : null;
+    if (exported) {
+      extendExportedGlobal(exported, globalComposer, hooks.onExtendExportedGlobal);
+    }
+    if (pluginOptions.inject) {
+      const common = initCommonComposableOptions(i18n);
+      vue.mixin({
+        methods: {
+          getRouteBaseName: wrapComposable(getRouteBaseName, common),
+          resolveRoute: wrapComposable(resolveRoute, common),
+          localePath: wrapComposable(localePath, common),
+          localeRoute: wrapComposable(localeRoute, common),
+          localeLocation: wrapComposable(localeLocation, common),
+          switchLocalePath: wrapComposable(switchLocalePath, common),
+          localeHead: wrapComposable(localeHead, common)
+        }
+      });
+    }
+    if (app.unmount) {
+      const unmountApp = app.unmount;
+      app.unmount = () => {
+        scope.stop();
+        unmountApp();
+      };
+    }
+  };
+  return scope;
+}
+function extendComposer(composer, options) {
+  const { locales, localeCodes: localeCodes2, baseUrl, context } = options;
+  const _locales = ref(locales);
+  const _localeCodes = ref(localeCodes2);
+  const _baseUrl = ref("");
+  composer.locales = computed(() => _locales.value);
+  composer.localeCodes = computed(() => _localeCodes.value);
+  composer.baseUrl = computed(() => _baseUrl.value);
+  {
+    _baseUrl.value = resolveBaseUrl(baseUrl, context);
+  }
+  if (options.hooks && options.hooks.onExtendComposer) {
+    options.hooks.onExtendComposer(composer);
+  }
+}
+function extendPropertyDescriptors(composer, exported, hook) {
+  const properties = [
+    {
+      locales: {
+        get() {
+          return composer.locales.value;
+        }
+      },
+      localeCodes: {
+        get() {
+          return composer.localeCodes.value;
+        }
+      },
+      baseUrl: {
+        get() {
+          return composer.baseUrl.value;
+        }
+      }
+    }
+  ];
+  hook && properties.push(hook(composer));
+  for (const property of properties) {
+    for (const [key, descriptor] of Object.entries(property)) {
+      Object.defineProperty(exported, key, descriptor);
+    }
+  }
+}
+function extendExportedGlobal(exported, g, hook) {
+  extendPropertyDescriptors(g, exported, hook);
+}
+function extendVueI18n(vueI18n, hook) {
+  const c = getComposer$3(vueI18n);
+  extendPropertyDescriptors(c, vueI18n, hook);
+}
+function isPluginOptions(options) {
+  return isObject(options) && ("inject" in options || "__composerExtend" in options || "__vueI18nExtend" in options);
+}
+const i18n_sq1MuCrqbC = /* @__PURE__ */ defineNuxtPlugin({
+  name: "i18n:plugin",
+  parallel: parallelPlugin,
+  async setup(nuxt) {
+    let __temp, __restore;
+    const route = useRoute();
+    const { vueApp: app } = nuxt;
+    const nuxtContext = nuxt;
+    const host = getHost();
+    const { configLocales, defaultLocale, multiDomainLocales, strategy } = nuxtContext.$config.public.i18n;
+    const hasDefaultForDomains = configLocales.some(
+      (l) => typeof l !== "string" && Array.isArray(l.defaultForDomains)
+    );
+    let defaultLocaleDomain;
+    if (defaultLocale) {
+      defaultLocaleDomain = defaultLocale;
+    } else if (hasDefaultForDomains) {
+      const findDefaultLocale = configLocales.find(
+        (l) => typeof l === "string" || !Array.isArray(l.defaultForDomains) ? false : l.defaultForDomains.includes(host ?? "")
+      );
+      defaultLocaleDomain = (findDefaultLocale == null ? void 0 : findDefaultLocale.code) ?? "";
+    } else {
+      defaultLocaleDomain = "";
+    }
+    if (multiDomainLocales && (strategy === "prefix_except_default" || strategy === "prefix_and_default")) {
+      const router = useRouter();
+      router.getRoutes().forEach((route2) => {
+        var _a;
+        if ((_a = route2.name) == null ? void 0 : _a.toString().includes("___default")) {
+          const routeNameLocale = route2.name.toString().split("___")[1];
+          if (routeNameLocale !== defaultLocaleDomain) {
+            router.removeRoute(route2.name);
+          } else {
+            const newRouteName = route2.name.toString().replace("___default", "");
+            route2.name = newRouteName;
+          }
+        }
+      });
+    }
+    const runtimeI18n = { ...nuxtContext.$config.public.i18n, defaultLocale: defaultLocaleDomain };
+    runtimeI18n.baseUrl = extendBaseUrl();
+    const _detectBrowserLanguage = runtimeDetectBrowserLanguage();
+    const vueI18nOptions = ([__temp, __restore] = executeAsync(() => loadVueI18nOptions(vueI18nConfigs, useNuxtApp())), __temp = await __temp, __restore(), __temp);
+    vueI18nOptions.messages = vueI18nOptions.messages || {};
+    vueI18nOptions.fallbackLocale = vueI18nOptions.fallbackLocale ?? false;
+    const getLocaleFromRoute = createLocaleFromRouteGetter();
+    const getDefaultLocale = (locale) => locale || vueI18nOptions.locale || "en-US";
+    const localeCookie = getI18nCookie();
+    let initialLocale = detectLocale(
+      route,
+      getLocaleFromRoute,
+      getDefaultLocale(runtimeI18n.defaultLocale),
+      {
+        ssg: "normal",
+        callType: "setup",
+        firstAccess: true,
+        localeCookie: getLocaleCookie(localeCookie, _detectBrowserLanguage, runtimeI18n.defaultLocale)
+      },
+      runtimeI18n
+    );
+    vueI18nOptions.messages = ([__temp, __restore] = executeAsync(() => loadInitialMessages(vueI18nOptions.messages, localeLoaders, {
+      localeCodes,
+      initialLocale,
+      lazy: runtimeI18n.lazy,
+      defaultLocale: runtimeI18n.defaultLocale,
+      fallbackLocale: vueI18nOptions.fallbackLocale
+    })), __temp = await __temp, __restore(), __temp);
+    initialLocale = getDefaultLocale(initialLocale);
+    const i18n = createI18n({ ...vueI18nOptions, locale: initialLocale });
+    let notInitialSetup = true;
+    const isInitialLocaleSetup = (locale) => initialLocale !== locale && notInitialSetup;
+    extendI18n(i18n, {
+      locales: runtimeI18n.configLocales,
+      localeCodes,
+      baseUrl: runtimeI18n.baseUrl,
+      context: nuxtContext,
+      hooks: {
+        onExtendComposer(composer) {
+          composer.strategy = runtimeI18n.strategy;
+          composer.localeProperties = computed(
+            () => normalizedLocales.find((l) => l.code === composer.locale.value) || { code: composer.locale.value }
+          );
+          composer.setLocale = async (locale) => {
+            const localeSetup = isInitialLocaleSetup(locale);
+            const modified = await loadAndSetLocale(locale, i18n, runtimeI18n, localeSetup);
+            if (modified && localeSetup) {
+              notInitialSetup = false;
+            }
+            const redirectPath = await nuxtContext.runWithContext(
+              () => detectRedirect({
+                route: { to: route },
+                targetLocale: locale,
+                routeLocaleGetter: getLocaleFromRoute
+              })
+            );
+            await nuxtContext.runWithContext(
+              async () => await navigate(
+                {
+                  nuxtApp: nuxtContext,
+                  i18n,
+                  redirectPath,
+                  locale,
+                  route
+                },
+                { enableNavigate: true }
+              )
+            );
+          };
+          composer.loadLocaleMessages = async (locale) => {
+            const setter = (locale2, message) => mergeLocaleMessage(i18n, locale2, message);
+            await loadLocale(locale, localeLoaders, setter);
+          };
+          composer.differentDomains = runtimeI18n.differentDomains;
+          composer.defaultLocale = runtimeI18n.defaultLocale;
+          composer.getBrowserLocale = () => getBrowserLocale();
+          composer.getLocaleCookie = () => getLocaleCookie(localeCookie, _detectBrowserLanguage, runtimeI18n.defaultLocale);
+          composer.setLocaleCookie = (locale) => setLocaleCookie(localeCookie, locale, _detectBrowserLanguage);
+          composer.onBeforeLanguageSwitch = (oldLocale, newLocale, initialSetup, context) => nuxt.callHook("i18n:beforeLocaleSwitch", { oldLocale, newLocale, initialSetup, context });
+          composer.onLanguageSwitched = (oldLocale, newLocale) => nuxt.callHook("i18n:localeSwitched", { oldLocale, newLocale });
+          composer.finalizePendingLocaleChange = async () => {
+            if (!i18n.__pendingLocale) {
+              return;
+            }
+            setLocale(i18n, i18n.__pendingLocale);
+            if (i18n.__resolvePendingLocalePromise) {
+              await i18n.__resolvePendingLocalePromise();
+            }
+            i18n.__pendingLocale = void 0;
+          };
+          composer.waitForPendingLocaleChange = async () => {
+            if (i18n.__pendingLocale && i18n.__pendingLocalePromise) {
+              await i18n.__pendingLocalePromise;
+            }
+          };
+        },
+        onExtendExportedGlobal(g) {
+          return {
+            strategy: {
+              get() {
+                return g.strategy;
+              }
+            },
+            localeProperties: {
+              get() {
+                return g.localeProperties.value;
+              }
+            },
+            setLocale: {
+              get() {
+                return async (locale) => Reflect.apply(g.setLocale, g, [locale]);
+              }
+            },
+            differentDomains: {
+              get() {
+                return g.differentDomains;
+              }
+            },
+            defaultLocale: {
+              get() {
+                return g.defaultLocale;
+              }
+            },
+            getBrowserLocale: {
+              get() {
+                return () => Reflect.apply(g.getBrowserLocale, g, []);
+              }
+            },
+            getLocaleCookie: {
+              get() {
+                return () => Reflect.apply(g.getLocaleCookie, g, []);
+              }
+            },
+            setLocaleCookie: {
+              get() {
+                return (locale) => Reflect.apply(g.setLocaleCookie, g, [locale]);
+              }
+            },
+            onBeforeLanguageSwitch: {
+              get() {
+                return (oldLocale, newLocale, initialSetup, context) => Reflect.apply(g.onBeforeLanguageSwitch, g, [oldLocale, newLocale, initialSetup, context]);
+              }
+            },
+            onLanguageSwitched: {
+              get() {
+                return (oldLocale, newLocale) => Reflect.apply(g.onLanguageSwitched, g, [oldLocale, newLocale]);
+              }
+            },
+            finalizePendingLocaleChange: {
+              get() {
+                return () => Reflect.apply(g.finalizePendingLocaleChange, g, []);
+              }
+            },
+            waitForPendingLocaleChange: {
+              get() {
+                return () => Reflect.apply(g.waitForPendingLocaleChange, g, []);
+              }
+            }
+          };
+        },
+        onExtendVueI18n(composer) {
+          return {
+            strategy: {
+              get() {
+                return composer.strategy;
+              }
+            },
+            localeProperties: {
+              get() {
+                return composer.localeProperties.value;
+              }
+            },
+            setLocale: {
+              get() {
+                return async (locale) => Reflect.apply(composer.setLocale, composer, [locale]);
+              }
+            },
+            loadLocaleMessages: {
+              get() {
+                return async (locale) => Reflect.apply(composer.loadLocaleMessages, composer, [locale]);
+              }
+            },
+            differentDomains: {
+              get() {
+                return composer.differentDomains;
+              }
+            },
+            defaultLocale: {
+              get() {
+                return composer.defaultLocale;
+              }
+            },
+            getBrowserLocale: {
+              get() {
+                return () => Reflect.apply(composer.getBrowserLocale, composer, []);
+              }
+            },
+            getLocaleCookie: {
+              get() {
+                return () => Reflect.apply(composer.getLocaleCookie, composer, []);
+              }
+            },
+            setLocaleCookie: {
+              get() {
+                return (locale) => Reflect.apply(composer.setLocaleCookie, composer, [locale]);
+              }
+            },
+            onBeforeLanguageSwitch: {
+              get() {
+                return (oldLocale, newLocale, initialSetup, context) => Reflect.apply(composer.onBeforeLanguageSwitch, composer, [
+                  oldLocale,
+                  newLocale,
+                  initialSetup,
+                  context
+                ]);
+              }
+            },
+            onLanguageSwitched: {
+              get() {
+                return (oldLocale, newLocale) => Reflect.apply(composer.onLanguageSwitched, composer, [oldLocale, newLocale]);
+              }
+            },
+            finalizePendingLocaleChange: {
+              get() {
+                return () => Reflect.apply(composer.finalizePendingLocaleChange, composer, []);
+              }
+            },
+            waitForPendingLocaleChange: {
+              get() {
+                return () => Reflect.apply(composer.waitForPendingLocaleChange, composer, []);
+              }
+            }
+          };
+        }
+      }
+    });
+    const pluginOptions = {
+      __composerExtend: (c) => {
+        const g = getComposer$3(i18n);
+        c.strategy = g.strategy;
+        c.localeProperties = computed(() => g.localeProperties.value);
+        c.setLocale = g.setLocale;
+        c.differentDomains = g.differentDomains;
+        c.getBrowserLocale = g.getBrowserLocale;
+        c.getLocaleCookie = g.getLocaleCookie;
+        c.setLocaleCookie = g.setLocaleCookie;
+        c.onBeforeLanguageSwitch = g.onBeforeLanguageSwitch;
+        c.onLanguageSwitched = g.onLanguageSwitched;
+        c.finalizePendingLocaleChange = g.finalizePendingLocaleChange;
+        c.waitForPendingLocaleChange = g.waitForPendingLocaleChange;
+        return () => {
+        };
+      }
+    };
+    app.use(i18n, pluginOptions);
+    injectNuxtHelpers(nuxtContext, i18n);
+    let routeChangeCount = 0;
+    addRouteMiddleware(
+      "locale-changing",
+      /* @__PURE__ */ defineNuxtRouteMiddleware(async (to, from) => {
+        let __temp2, __restore2;
+        const locale = detectLocale(
+          to,
+          getLocaleFromRoute,
+          () => {
+            return getLocale$1(i18n) || getDefaultLocale(runtimeI18n.defaultLocale);
+          },
+          {
+            ssg: "normal",
+            callType: "routing",
+            firstAccess: routeChangeCount === 0,
+            localeCookie: getLocaleCookie(localeCookie, _detectBrowserLanguage, runtimeI18n.defaultLocale)
+          },
+          runtimeI18n
+        );
+        const localeSetup = isInitialLocaleSetup(locale);
+        const modified = ([__temp2, __restore2] = executeAsync(() => loadAndSetLocale(locale, i18n, runtimeI18n, localeSetup)), __temp2 = await __temp2, __restore2(), __temp2);
+        if (modified && localeSetup) {
+          notInitialSetup = false;
+        }
+        const redirectPath = ([__temp2, __restore2] = executeAsync(() => nuxtContext.runWithContext(
+          () => detectRedirect({
+            route: { to, from },
+            targetLocale: locale,
+            routeLocaleGetter: runtimeI18n.strategy === "no_prefix" ? () => locale : getLocaleFromRoute,
+            calledWithRouting: true
+          })
+        )), __temp2 = await __temp2, __restore2(), __temp2);
+        routeChangeCount++;
+        return [__temp2, __restore2] = executeAsync(() => nuxtContext.runWithContext(
+          async () => navigate({ nuxtApp: nuxtContext, i18n, redirectPath, locale, route: to })
+        )), __temp2 = await __temp2, __restore2(), __temp2;
+      }),
+      { global: true }
+    );
+  }
+});
+const cfg0 = defineAppConfig({
+  siteName: "Legendás Falatozó",
+  shortDescription: "This is an example of a WooNuxt store. It provides a modern, fast, and SEO friendly ecommerce store built with Nuxt and WooCommerce.",
+  description: `WooNuxt is unmatched when it comes to performance and scalability. Reap the benefits of having a online store that out performs all of your competitors. You can edit components to display your own information just like the one you're reading now.`,
+  baseUrl: "https://v3.woonuxt.com",
+  siteImage: "https://user-images.githubusercontent.com/5116925/218879668-f4c1f9fd-bef4-44b0-bc7f-e87d994aa3a1.png",
+  storeSettings: {
+    autoOpenCart: false,
+    showReviews: true,
+    showFilters: true,
+    showOrderByDropdown: true,
+    showSKU: true,
+    showRelatedProducts: true,
+    showProductCategoriesOnSingleProduct: true,
+    showBreadcrumbOnSingleProduct: true,
+    showMoveToWishlist: true,
+    hideBillingAddressForVirtualProducts: false,
+    initStoreOnUserActionToReduceServerLoad: true,
+    saleBadge: "percent"
+    // 'percent', 'onSale' or 'hidden'
+  }
+});
+const inlineConfig = {
+  "nuxt": {},
+  "icon": {
+    "provider": "server",
+    "class": "",
+    "aliases": {},
+    "iconifyApiEndpoint": "https://api.iconify.design",
+    "localApiEndpoint": "/api/_nuxt_icon",
+    "fallbackToApi": true,
+    "cssSelectorPrefix": "i-",
+    "cssWherePseudo": true,
+    "mode": "css",
+    "attrs": {
+      "aria-hidden": true
+    },
+    "collections": [
+      "academicons",
+      "akar-icons",
+      "ant-design",
+      "arcticons",
+      "basil",
+      "bi",
+      "bitcoin-icons",
+      "bpmn",
+      "brandico",
+      "bx",
+      "bxl",
+      "bxs",
+      "bytesize",
+      "carbon",
+      "catppuccin",
+      "cbi",
+      "charm",
+      "ci",
+      "cib",
+      "cif",
+      "cil",
+      "circle-flags",
+      "circum",
+      "clarity",
+      "codicon",
+      "covid",
+      "cryptocurrency",
+      "cryptocurrency-color",
+      "dashicons",
+      "devicon",
+      "devicon-plain",
+      "ei",
+      "el",
+      "emojione",
+      "emojione-monotone",
+      "emojione-v1",
+      "entypo",
+      "entypo-social",
+      "eos-icons",
+      "ep",
+      "et",
+      "eva",
+      "f7",
+      "fa",
+      "fa-brands",
+      "fa-regular",
+      "fa-solid",
+      "fa6-brands",
+      "fa6-regular",
+      "fa6-solid",
+      "fad",
+      "fe",
+      "feather",
+      "file-icons",
+      "flag",
+      "flagpack",
+      "flat-color-icons",
+      "flat-ui",
+      "flowbite",
+      "fluent",
+      "fluent-emoji",
+      "fluent-emoji-flat",
+      "fluent-emoji-high-contrast",
+      "fluent-mdl2",
+      "fontelico",
+      "fontisto",
+      "formkit",
+      "foundation",
+      "fxemoji",
+      "gala",
+      "game-icons",
+      "geo",
+      "gg",
+      "gis",
+      "gravity-ui",
+      "gridicons",
+      "grommet-icons",
+      "guidance",
+      "healthicons",
+      "heroicons",
+      "heroicons-outline",
+      "heroicons-solid",
+      "hugeicons",
+      "humbleicons",
+      "ic",
+      "icomoon-free",
+      "icon-park",
+      "icon-park-outline",
+      "icon-park-solid",
+      "icon-park-twotone",
+      "iconamoon",
+      "iconoir",
+      "icons8",
+      "il",
+      "ion",
+      "iwwa",
+      "jam",
+      "la",
+      "lets-icons",
+      "line-md",
+      "logos",
+      "ls",
+      "lucide",
+      "lucide-lab",
+      "mage",
+      "majesticons",
+      "maki",
+      "map",
+      "marketeq",
+      "material-symbols",
+      "material-symbols-light",
+      "mdi",
+      "mdi-light",
+      "medical-icon",
+      "memory",
+      "meteocons",
+      "mi",
+      "mingcute",
+      "mono-icons",
+      "mynaui",
+      "nimbus",
+      "nonicons",
+      "noto",
+      "noto-v1",
+      "octicon",
+      "oi",
+      "ooui",
+      "openmoji",
+      "oui",
+      "pajamas",
+      "pepicons",
+      "pepicons-pencil",
+      "pepicons-pop",
+      "pepicons-print",
+      "ph",
+      "pixelarticons",
+      "prime",
+      "ps",
+      "quill",
+      "radix-icons",
+      "raphael",
+      "ri",
+      "rivet-icons",
+      "si-glyph",
+      "simple-icons",
+      "simple-line-icons",
+      "skill-icons",
+      "solar",
+      "streamline",
+      "streamline-emojis",
+      "subway",
+      "svg-spinners",
+      "system-uicons",
+      "tabler",
+      "tdesign",
+      "teenyicons",
+      "token",
+      "token-branded",
+      "topcoat",
+      "twemoji",
+      "typcn",
+      "uil",
+      "uim",
+      "uis",
+      "uit",
+      "uiw",
+      "unjs",
+      "vaadin",
+      "vs",
+      "vscode-icons",
+      "websymbol",
+      "weui",
+      "whh",
+      "wi",
+      "wpf",
+      "zmdi",
+      "zondicons"
+    ],
+    "fetchTimeout": 500
+  }
+};
+const __appConfig = /* @__PURE__ */ defuFn(cfg0, inlineConfig);
+function useAppConfig() {
+  const nuxtApp = useNuxtApp();
+  if (!nuxtApp._appConfig) {
+    nuxtApp._appConfig = klona(__appConfig);
+  }
+  return nuxtApp._appConfig;
+}
+const plugin_WLsn00x1qh = /* @__PURE__ */ defineNuxtPlugin({
+  name: "@nuxt/icon",
+  setup() {
+    var _a, _b;
+    const config = /* @__PURE__ */ useRuntimeConfig();
+    const options = useAppConfig().icon;
+    _api.setFetch($fetch.native);
+    disableCache("all");
+    const resources = [];
+    if (options.provider === "server") {
+      const baseURL2 = ((_b = (_a = config.app) == null ? void 0 : _a.baseURL) == null ? void 0 : _b.replace(/\/$/, "")) ?? "";
+      resources.push(baseURL2 + (options.localApiEndpoint || "/api/_nuxt_icon"));
+      if (options.fallbackToApi === true || options.fallbackToApi === "client-only") {
+        resources.push(options.iconifyApiEndpoint);
+      }
+    } else {
+      resources.push(options.iconifyApiEndpoint);
+    }
+    addAPIProvider("", { resources });
+  }
+});
+const plugin_jBToDIZpFa = /* @__PURE__ */ defineNuxtPlugin((nuxtApp) => {
+  var _a;
+  if (!(nuxtApp == null ? void 0 : nuxtApp._gqlState)) {
+    nuxtApp._gqlState = ref({});
+    const config = /* @__PURE__ */ useRuntimeConfig();
+    const { clients } = defu(config == null ? void 0 : config["graphql-client"], (_a = config == null ? void 0 : config.public) == null ? void 0 : _a["graphql-client"]);
+    const proxyHeaders = Object.values(clients || {}).flatMap((v2) => v2 == null ? void 0 : v2.proxyHeaders).filter((v2, i, a) => Boolean(v2) && a.indexOf(v2) === i);
+    if (!proxyHeaders.includes("cookie")) {
+      proxyHeaders.push("cookie");
+    }
+    const requestHeaders = useRequestHeaders(proxyHeaders) || void 0;
+    for (const [name2, v2] of Object.entries(clients || {})) {
+      const host = v2.host;
+      const proxyCookie = (v2 == null ? void 0 : v2.proxyCookies) && !!(requestHeaders == null ? void 0 : requestHeaders.cookie);
+      let headers = v2 == null ? void 0 : v2.headers;
+      const serverHeaders = typeof (headers == null ? void 0 : headers.serverOnly) === "object" && (headers == null ? void 0 : headers.serverOnly) || {};
+      if (headers == null ? void 0 : headers.serverOnly) {
+        headers = { ...headers };
+        delete headers.serverOnly;
+      }
+      for (const header of (v2 == null ? void 0 : v2.proxyHeaders) || []) {
+        if (!(requestHeaders == null ? void 0 : requestHeaders[header])) {
+          continue;
+        }
+        headers = { ...headers, [header]: requestHeaders == null ? void 0 : requestHeaders[header] };
+      }
+      const opts = {
+        headers: {
+          ...headers,
+          ...serverHeaders,
+          ...proxyCookie && { cookie: requestHeaders == null ? void 0 : requestHeaders.cookie }
+        },
+        ...v2 == null ? void 0 : v2.corsOptions,
+        ...v2 == null ? void 0 : v2.fetchOptions
+      };
+      nuxtApp._gqlState.value[name2] = {
+        options: opts,
+        instance: new GraphQLClient(host, {
+          ...(v2 == null ? void 0 : v2.preferGETQueries) && {
+            method: "GET",
+            jsonSerializer: { parse: JSON.parse, stringify: JSON.stringify }
+          },
+          requestMiddleware: async (req) => {
+            var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r;
+            const token = ref();
+            await nuxtApp.callHook("gql:auth:init", { token, client: name2 });
+            const reqOpts = defu(((_b = (_a2 = nuxtApp._gqlState.value) == null ? void 0 : _a2[name2]) == null ? void 0 : _b.options) || {}, { headers: {} });
+            if (!token.value) {
+              token.value = (_c = reqOpts == null ? void 0 : reqOpts.token) == null ? void 0 : _c.value;
+            }
+            if (token.value === void 0 && typeof v2.tokenStorage === "object") {
+              if (((_d = v2.tokenStorage) == null ? void 0 : _d.mode) === "cookie") {
+                if (requestHeaders == null ? void 0 : requestHeaders.cookie) {
+                  const cookieName = `${v2.tokenStorage.name}=`;
+                  token.value = (_f = (_e = requestHeaders == null ? void 0 : requestHeaders.cookie.split(";").find((c) => c.trim().startsWith(cookieName))) == null ? void 0 : _e.split("=")) == null ? void 0 : _f[1];
+                }
+              }
+            }
+            if (token.value === void 0) {
+              token.value = (_g = v2 == null ? void 0 : v2.token) == null ? void 0 : _g.value;
+            }
+            if (token.value) {
+              token.value = token.value.trim();
+              const tokenName = token.value === ((_h = reqOpts == null ? void 0 : reqOpts.token) == null ? void 0 : _h.value) ? ((_i = reqOpts == null ? void 0 : reqOpts.token) == null ? void 0 : _i.name) || ((_j = v2 == null ? void 0 : v2.token) == null ? void 0 : _j.name) : (_k = v2 == null ? void 0 : v2.token) == null ? void 0 : _k.name;
+              const tokenType = token.value === ((_l = reqOpts == null ? void 0 : reqOpts.token) == null ? void 0 : _l.value) ? ((_m = reqOpts == null ? void 0 : reqOpts.token) == null ? void 0 : _m.type) === null ? null : ((_n = reqOpts == null ? void 0 : reqOpts.token) == null ? void 0 : _n.type) || ((_o = v2 == null ? void 0 : v2.token) == null ? void 0 : _o.type) : (_p = v2 == null ? void 0 : v2.token) == null ? void 0 : _p.type;
+              const authScheme = !!((_r = (_q = token.value) == null ? void 0 : _q.match(/^[a-zA-Z]+\s/)) == null ? void 0 : _r[0]);
+              if (authScheme) {
+                reqOpts.headers[tokenName] = token.value;
+              } else {
+                reqOpts.headers[tokenName] = !tokenType ? token.value : `${tokenType} ${token.value}`;
+              }
+            }
+            if (reqOpts == null ? void 0 : reqOpts.token) {
+              delete reqOpts.token;
+            }
+            return defu(req, reqOpts);
+          },
+          ...v2 == null ? void 0 : v2.fetchOptions
+        })
+      };
+    }
+  }
+});
+const name = "woonuxt";
+const version = "4.3.5";
+const main = "./nuxt.config.ts";
+const type = "module";
+const pkg = {
+  name,
+  version,
+  main,
+  type
+};
+function useHelpers() {
+  var _a, _b, _c, _d;
+  const route = useRoute();
+  const runtimeConfig = /* @__PURE__ */ useRuntimeConfig();
+  const isShowingMobileMenu = useState("isShowingMobileMenu", () => false);
+  const wooNuxtVersionInfo = pkg.version;
+  const productsPerPage = ((_a = runtimeConfig.public) == null ? void 0 : _a.PRODUCTS_PER_PAGE) || 24;
+  const wooNuxtSEO = (_b = runtimeConfig.public) == null ? void 0 : _b.WOO_NUXT_SEO;
+  const frontEndUrl = ((_d = (_c = runtimeConfig.public) == null ? void 0 : _c.FRONT_END_URL) == null ? void 0 : _d.replace(/\/$/, "")) || null;
+  const isDev = "production" === "development";
+  const FALLBACK_IMG = "/images/placeholder.jpg";
+  function toggleMobileMenu(state = void 0) {
+    isShowingMobileMenu.value = state ?? !isShowingMobileMenu.value;
+  }
+  const formatVariationArrays = (arr) => arr.map((a) => ({ name: a.name.replace(/[-\s]/g, ""), value: a.value.replace(/[-\s]/g, "") }));
+  const arraysEqual = (a1, a2) => JSON.stringify(formatVariationArrays(a1)) === JSON.stringify(formatVariationArrays(a2));
+  const formatArray = (arr) => {
+    return arr.map((v2) => {
+      let name2 = v2.name.toLowerCase();
+      name2 = name2.startsWith("pa_") ? name2.replace("pa_", "") : name2;
+      const value = v2.value.toLowerCase();
+      return { name: name2, value };
+    });
+  };
+  function clearAllCookies() {
+    const cookies = (void 0).cookie.split(";");
+    for (const cookie of cookies) {
+      const eqPos = cookie.indexOf("=");
+      const name2 = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+      (void 0).cookie = name2 + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    }
+  }
+  function clearAllLocalStorage() {
+    localStorage.clear();
+  }
+  function replaceQueryParam(param, newval, search) {
+    const regex = new RegExp("([?;&])" + param + "[^&;]*[;&]?");
+    const query = search.replace(regex, "$1").replace(/&$/, "");
+    return (query.length > 2 ? query + "&" : "?") + (newval ? param + "=" + newval : "");
+  }
+  function removeBodyClass(className) {
+    const body = (void 0).querySelector("body");
+    body == null ? void 0 : body.classList.remove(className);
+  }
+  function addBodyClass(className) {
+    const body = (void 0).querySelector("body");
+    body == null ? void 0 : body.classList.add(className);
+  }
+  function toggleBodyClass(className) {
+    const body = (void 0).querySelector("body");
+    (body == null ? void 0 : body.classList.contains(className)) ? body.classList.remove(className) : body == null ? void 0 : body.classList.add(className);
+  }
+  const checkForVariationTypeOfAny = (product) => {
+    var _a2, _b2, _c2;
+    const numberOfVariation = ((_b2 = (_a2 = product == null ? void 0 : product.attributes) == null ? void 0 : _a2.nodes) == null ? void 0 : _b2.length) ?? 0;
+    let indexOfTypeAny = [];
+    for (let index2 = 0; index2 < numberOfVariation; index2++) {
+      const tempArray = [];
+      (_c2 = product.variations) == null ? void 0 : _c2.nodes.forEach((element) => {
+        var _a3, _b3;
+        if ((_b3 = (_a3 = element.attributes) == null ? void 0 : _a3.nodes[index2]) == null ? void 0 : _b3.value) tempArray.push(element.attributes.nodes[index2].value);
+      });
+      if (!tempArray.some(Boolean)) indexOfTypeAny.push(index2);
+    }
+    return indexOfTypeAny;
+  };
+  const isQueryEmpty = computed(() => Object.keys(route.query).length === 0);
+  const formatDate = (date) => {
+    if (!date) return "";
+    return new Date(date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  };
+  const formatPrice = (price) => parseFloat(price).toLocaleString("en-US", { style: "currency", currency: "EUR" });
+  const scrollToTop = () => {
+    (void 0).scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const stripHtml = (str = "") => {
+    return str === null ? "" : str.replace(/(<([^>]+)>)/gi, "");
+  };
+  const debounce = (func, delay = 100) => {
+    let inDebounce;
+    return function(...args) {
+      clearTimeout(inDebounce);
+      inDebounce = setTimeout(() => func.apply(this, args), delay);
+    };
+  };
+  const logGQLError = (error) => {
+    var _a2, _b2;
+    if (!route.query.debug) return;
+    const errorMessage = (_b2 = (_a2 = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _a2[0]) == null ? void 0 : _b2.message;
+    if (errorMessage) {
+      console.error(errorMessage);
+    }
+  };
+  return {
+    isShowingMobileMenu,
+    wooNuxtVersionInfo,
+    productsPerPage,
+    isQueryEmpty,
+    wooNuxtSEO,
+    frontEndUrl,
+    isDev,
+    FALLBACK_IMG,
+    formatArray,
+    arraysEqual,
+    clearAllCookies,
+    clearAllLocalStorage,
+    replaceQueryParam,
+    addBodyClass,
+    removeBodyClass,
+    toggleBodyClass,
+    toggleMobileMenu,
+    checkForVariationTypeOfAny,
+    formatDate,
+    formatPrice,
+    scrollToTop,
+    stripHtml,
+    debounce,
+    logGQLError
+  };
+}
+const ImageFragmentDoc = gql`
+    fragment Image on MediaItem {
+  sourceUrl
+  altText
+  title
+  databaseId
+}
+    `;
+const SimpleProductFragmentDoc = gql`
+    fragment SimpleProduct on SimpleProduct {
+  name
+  slug
+  price
+  shortDescription
+  description
+  rawPrice: price(format: RAW)
+  date
+  regularPrice
+  rawRegularPrice: regularPrice(format: RAW)
+  salePrice
+  rawSalePrice: salePrice(format: RAW)
+  stockStatus
+  stockQuantity
+  lowStockAmount
+  averageRating
+  weight
+  length
+  width
+  height
+  reviewCount
+  onSale
+  virtual
+  image {
+    ...Image
+    cartSourceUrl: sourceUrl(size: THUMBNAIL)
+    producCardSourceUrl: sourceUrl(size: WOOCOMMERCE_THUMBNAIL)
+  }
+  galleryImages(first: 20) {
+    nodes {
+      ...Image
+      databaseId
+    }
+  }
+}
+    `;
+const VariationAttributeFragmentDoc = gql`
+    fragment VariationAttribute on VariationAttribute {
+  name
+  attributeId
+  value
+  label
+}
+    `;
+const VariableProductFragmentDoc = gql`
+    fragment VariableProduct on VariableProduct {
+  name
+  slug
+  price
+  shortDescription
+  description
+  rawPrice: price(format: RAW)
+  date
+  weight
+  length
+  width
+  height
+  image {
+    ...Image
+    cartSourceUrl: sourceUrl(size: THUMBNAIL)
+    producCardSourceUrl: sourceUrl(size: WOOCOMMERCE_THUMBNAIL)
+  }
+  averageRating
+  reviewCount
+  onSale
+  regularPrice
+  rawRegularPrice: regularPrice(format: RAW)
+  salePrice
+  rawSalePrice: salePrice(format: RAW)
+  stockStatus
+  totalSales
+  stockQuantity
+  lowStockAmount
+  defaultAttributes {
+    nodes {
+      ...VariationAttribute
+    }
+  }
+  variations(first: 100) {
+    nodes {
+      name
+      databaseId
+      price
+      shortDescription
+      description
+      regularPrice
+      salePrice
+      slug
+      stockQuantity
+      stockStatus
+      hasAttributes
+      image {
+        ...Image
+        cartSourceUrl: sourceUrl(size: THUMBNAIL)
+        producCardSourceUrl: sourceUrl(size: WOOCOMMERCE_THUMBNAIL)
+      }
+      attributes {
+        nodes {
+          ...VariationAttribute
+        }
+      }
+    }
+  }
+  galleryImages(first: 20) {
+    nodes {
+      ...Image
+      databaseId
+    }
+  }
+}
+    `;
+const ExternalProductFragmentDoc = gql`
+    fragment ExternalProduct on ExternalProduct {
+  externalUrl
+  buttonText
+}
+    `;
+const CartFragmentDoc = gql`
+    fragment Cart on Cart {
+  total
+  rawTotal: total(format: RAW)
+  subtotal
+  totalTax
+  discountTotal
+  rawDiscountTotal: discountTotal(format: RAW)
+  shippingTotal
+  chosenShippingMethods
+  availableShippingMethods {
+    rates {
+      cost
+      id
+      label
+    }
+  }
+  appliedCoupons {
+    description
+    discountTax
+    discountAmount
+    code
+  }
+  isEmpty
+  contents(first: 100) {
+    itemCount
+    productCount
+    nodes {
+      quantity
+      key
+      product {
+        node {
+          name
+          slug
+          sku
+          databaseId
+          type
+          ...SimpleProduct
+          ...VariableProduct
+          ...ExternalProduct
+        }
+      }
+      variation {
+        node {
+          name
+          slug
+          price
+          stockStatus
+          regularPrice
+          rawRegularPrice: regularPrice(format: RAW)
+          salePrice
+          rawSalePrice: salePrice(format: RAW)
+          image {
+            sourceUrl(size: THUMBNAIL)
+            cartSourceUrl: sourceUrl(size: THUMBNAIL)
+            altText
+            title
+          }
+        }
+      }
+    }
+  }
+}
+    `;
+const DownloadableItemFragmentDoc = gql`
+    fragment DownloadableItem on DownloadableItem {
+  id
+  name
+  product {
+    name
+    slug
+  }
+  url
+  accessExpires
+  downloadsRemaining
+}
+    `;
+const AddressFragmentDoc = gql`
+    fragment Address on CustomerAddress {
+  address1
+  address2
+  city
+  country
+  email
+  firstName
+  lastName
+  phone
+  postcode
+  company
+  state
+}
+    `;
+const CustomerFragmentDoc = gql`
+    fragment Customer on Customer {
+  lastName
+  email
+  firstName
+  username
+  databaseId
+  sessionToken
+  isPayingCustomer
+  billing {
+    ...Address
+  }
+  shipping {
+    ...Address
+  }
+}
+    `;
+const OrderFragmentFragmentDoc = gql`
+    fragment OrderFragment on Order {
+  orderNumber
+  date
+  status
+  needsPayment
+  needsProcessing
+  databaseId
+  orderKey
+  total
+  subtotal
+  discountTotal
+  rawDiscountTotal: discountTotal(format: RAW)
+  totalTax
+  shippingTotal
+  paymentMethodTitle
+  paymentMethod
+  customer {
+    email
+    downloadableItems(first: 100) {
+      nodes {
+        ...DownloadableItem
+      }
+    }
+  }
+  downloadableItems(first: 100) {
+    nodes {
+      ...DownloadableItem
+    }
+  }
+  lineItems {
+    nodes {
+      quantity
+      total
+      id
+      product {
+        node {
+          name
+          slug
+          image {
+            sourceUrl(size: THUMBNAIL)
+            altText
+            title
+          }
+        }
+      }
+      variation {
+        node {
+          name
+          image {
+            sourceUrl(size: THUMBNAIL)
+            altText
+            title
+          }
+        }
+      }
+    }
+  }
+  customer {
+    ...Customer
+  }
+}
+    `;
+const ProductCategoriesFragmentDoc = gql`
+    fragment ProductCategories on Product {
+  productCategories {
+    nodes {
+      databaseId
+      slug
+      name
+      count
+    }
+  }
+}
+    `;
+const TermsFragmentDoc = gql`
+    fragment Terms on Product {
+  terms(first: 100) {
+    nodes {
+      taxonomyName
+      slug
+    }
+  }
+}
+    `;
+const ViewerFragmentDoc = gql`
+    fragment Viewer on User {
+  lastName
+  email
+  databaseId
+  id
+  firstName
+  username
+  nicename
+  wooSessionToken
+  avatar {
+    url
+  }
+}
+    `;
+const PaymentGatewayFragmentDoc = gql`
+    fragment PaymentGateway on PaymentGateway {
+  title
+  id
+  description
+}
+    `;
+const ProductAttributeFragmentDoc = gql`
+    fragment ProductAttribute on ProductAttribute {
+  variation
+  name
+  id
+  options
+  label
+  scope
+}
+    `;
+const CommentFragmentDoc = gql`
+    fragment Comment on Comment {
+  content
+  id
+  date
+  author {
+    node {
+      name
+      avatar {
+        url
+      }
+    }
+  }
+}
+    `;
+const ProductCategoryFragmentDoc = gql`
+    fragment ProductCategory on ProductCategory {
+  count
+  databaseId
+  id
+  name
+  slug
+  image {
+    sourceUrl(size: MEDIUM_LARGE)
+    altText
+    title
+  }
+}
+    `;
+const AddToCartDocument = gql`
+    mutation addToCart($input: AddToCartInput!) {
+  addToCart(input: $input) {
+    cart {
+      ...Cart
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const ApplyCouponDocument = gql`
+    mutation applyCoupon($code: String!) {
+  applyCoupon(input: {code: $code}) {
+    applied {
+      code
+      description
+      discountTax
+      discountAmount
+    }
+    cart {
+      ...Cart
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const ChangeShippingCountyDocument = gql`
+    mutation ChangeShippingCounty($shippingState: String!, $shippingCountry: CountriesEnum!, $billingState: String!, $billingCountry: CountriesEnum!) {
+  updateCustomer(
+    input: {shipping: {state: $shippingState, country: $shippingCountry}, billing: {state: $billingState, country: $billingCountry}}
+  ) {
+    customer {
+      calculatedShipping
+      hasCalculatedShipping
+    }
+  }
+}
+    `;
+const ChangeShippingMethodDocument = gql`
+    mutation ChangeShippingMethod($shippingMethods: [String] = "") {
+  updateShippingMethod(input: {shippingMethods: $shippingMethods}) {
+    cart {
+      ...Cart
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const CheckoutDocument = gql`
+    mutation Checkout($billing: CustomerAddressInput = {}, $metaData: [MetaDataInput] = {key: "", value: ""}, $paymentMethod: String = "stripe", $shipping: CustomerAddressInput = {}, $customerNote: String = "", $shipToDifferentAddress: Boolean = false, $account: CreateAccountInput = {username: "", password: ""}, $transactionId: String = "", $isPaid: Boolean = false) {
+  checkout(
+    input: {paymentMethod: $paymentMethod, billing: $billing, metaData: $metaData, shipping: $shipping, customerNote: $customerNote, shipToDifferentAddress: $shipToDifferentAddress, account: $account, transactionId: $transactionId, isPaid: $isPaid}
+  ) {
+    result
+    redirect
+    order {
+      needsPayment
+      needsProcessing
+      status
+      databaseId
+      orderKey
+      subtotal
+      total
+      subtotal
+      totalTax
+      shippingTotal
+      paymentMethodTitle
+      paymentMethod
+      date
+      subtotal
+      customer {
+        email
+      }
+      lineItems {
+        nodes {
+          quantity
+          total
+          product {
+            node {
+              name
+              image {
+                ...Image
+              }
+            }
+          }
+          variation {
+            node {
+              name
+              image {
+                ...Image
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    ${ImageFragmentDoc}`;
+const EmptyCartDocument = gql`
+    mutation EmptyCart {
+  emptyCart(input: {clearPersistentCart: true}) {
+    cart {
+      ...Cart
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const GetAllTermsDocument = gql`
+    query getAllTerms($hideEmpty: Boolean = true, $taxonomies: [TaxonomyEnum]!, $first: Int = 100) {
+  terms(where: {taxonomies: $taxonomies, hideEmpty: $hideEmpty}, first: $first) {
+    nodes {
+      taxonomyName
+      name
+      slug
+      count
+    }
+  }
+}
+    `;
+const GetAllowedCountriesDocument = gql`
+    query getAllowedCountries {
+  allowedCountries
+}
+    `;
+const GetCartDocument = gql`
+    query getCart {
+  cart {
+    ...Cart
+  }
+  customer {
+    ...Customer
+  }
+  viewer {
+    ...Viewer
+  }
+  paymentGateways {
+    nodes {
+      ...PaymentGateway
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}
+${CustomerFragmentDoc}
+${AddressFragmentDoc}
+${ViewerFragmentDoc}
+${PaymentGatewayFragmentDoc}`;
+const GetDownloadsDocument = gql`
+    query getDownloads {
+  customer {
+    downloadableItems(first: 100) {
+      nodes {
+        ...DownloadableItem
+      }
+    }
+  }
+}
+    ${DownloadableItemFragmentDoc}`;
+const GetOrderDocument = gql`
+    query getOrder($id: ID!) {
+  order(id: $id, idType: DATABASE_ID) {
+    ...OrderFragment
+  }
+}
+    ${OrderFragmentFragmentDoc}
+${DownloadableItemFragmentDoc}
+${CustomerFragmentDoc}
+${AddressFragmentDoc}`;
+const GetOrdersDocument = gql`
+    query getOrders {
+  customer {
+    orders(first: 100) {
+      nodes {
+        ...OrderFragment
+      }
+    }
+  }
+}
+    ${OrderFragmentFragmentDoc}
+${DownloadableItemFragmentDoc}
+${CustomerFragmentDoc}
+${AddressFragmentDoc}`;
+const GetProductDocument = gql`
+    query getProduct($slug: ID!) {
+  product(id: $slug, idType: SLUG) {
+    name
+    type
+    databaseId
+    id
+    metaData {
+      id
+      key
+      value
+    }
+    slug
+    sku
+    description
+    rawDescription: description(format: RAW)
+    shortDescription
+    attributes {
+      nodes {
+        ...ProductAttribute
+        ... on GlobalProductAttribute {
+          slug
+          terms(where: {orderby: MENU_ORDER, order: ASC}) {
+            nodes {
+              name
+              slug
+              taxonomyName
+              databaseId
+            }
+          }
+        }
+      }
+    }
+    ...ProductCategories
+    ...Terms
+    ...SimpleProduct
+    ...VariableProduct
+    ...ExternalProduct
+    related(first: 5) {
+      nodes {
+        ...SimpleProduct
+        ...VariableProduct
+        ...ExternalProduct
+      }
+    }
+    reviews {
+      averageRating
+      edges {
+        rating
+        node {
+          ...Comment
+        }
+      }
+    }
+  }
+}
+    ${ProductAttributeFragmentDoc}
+${ProductCategoriesFragmentDoc}
+${TermsFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}
+${CommentFragmentDoc}`;
+const GetProductCategoriesDocument = gql`
+    query getProductCategories($first: Int = 20) {
+  productCategories(
+    first: $first
+    where: {orderby: COUNT, order: DESC, hideEmpty: false}
+  ) {
+    nodes {
+      ...ProductCategory
+    }
+  }
+}
+    ${ProductCategoryFragmentDoc}`;
+const GetProductsDocument = gql`
+    query getProducts($after: String, $slug: [String], $first: Int = 9999, $orderby: ProductsOrderByEnum = DATE) {
+  products(
+    first: $first
+    after: $after
+    where: {categoryIn: $slug, visibility: VISIBLE, minPrice: 0, orderby: {field: $orderby, order: DESC}, status: "publish"}
+  ) {
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      name
+      slug
+      type
+      databaseId
+      shortDescription
+      description
+      id
+      averageRating
+      reviewCount
+      ...Terms
+      ...ProductCategories
+      ...SimpleProduct
+      ...VariableProduct
+      ...ExternalProduct
+    }
+  }
+}
+    ${TermsFragmentDoc}
+${ProductCategoriesFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const GetStatesDocument = gql`
+    query getStates($country: CountriesEnum!) {
+  countryStates(country: $country) {
+    code
+    name
+  }
+}
+    `;
+const GetStockStatusDocument = gql`
+    query getStockStatus($slug: ID!) {
+  product(id: $slug, idType: SLUG) {
+    ... on SimpleProduct {
+      stockStatus
+    }
+    ... on VariableProduct {
+      stockStatus
+      variations {
+        nodes {
+          stockStatus
+        }
+      }
+    }
+  }
+}
+    `;
+const GetStripePaymentIntentDocument = gql`
+    query getStripePaymentIntent {
+  stripePaymentIntent {
+    amount
+    clientSecret
+    error
+    id
+    currency
+  }
+}
+    `;
+const LoginDocument = gql`
+    mutation login($username: String!, $password: String!) {
+  loginWithCookies(
+    input: {login: $username, password: $password, rememberMe: true}
+  ) {
+    status
+  }
+}
+    `;
+const LogoutDocument = gql`
+    mutation Logout {
+  logout(input: {clientMutationId: ""}) {
+    status
+  }
+}
+    `;
+const RegisterCustomerDocument = gql`
+    mutation registerCustomer($input: RegisterCustomerInput!) {
+  registerCustomer(input: $input) {
+    customer {
+      ...Customer
+    }
+  }
+}
+    ${CustomerFragmentDoc}
+${AddressFragmentDoc}`;
+const RemoveCouponsDocument = gql`
+    mutation removeCoupons($codes: [String]!) {
+  removeCoupons(input: {codes: $codes}) {
+    cart {
+      ...Cart
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const ResetPasswordEmailDocument = gql`
+    mutation ResetPasswordEmail($username: String!) {
+  sendPasswordResetEmail(input: {username: $username}) {
+    success
+  }
+}
+    `;
+const ResetPasswordKeyDocument = gql`
+    mutation ResetPasswordKey($key: String!, $login: String!, $password: String!) {
+  resetUserPassword(input: {key: $key, login: $login, password: $password}) {
+    user {
+      id
+    }
+  }
+}
+    `;
+const UpDateCartQuantityDocument = gql`
+    mutation UpDateCartQuantity($key: ID!, $quantity: Int!) {
+  updateItemQuantities(input: {items: {key: $key, quantity: $quantity}}) {
+    cart {
+      ...Cart
+    }
+  }
+}
+    ${CartFragmentDoc}
+${SimpleProductFragmentDoc}
+${ImageFragmentDoc}
+${VariableProductFragmentDoc}
+${VariationAttributeFragmentDoc}
+${ExternalProductFragmentDoc}`;
+const UpdateCustomerDocument = gql`
+    mutation UpdateCustomer($input: UpdateCustomerInput!) {
+  updateCustomer(input: $input) {
+    customer {
+      downloadableItems(first: 100) {
+        nodes {
+          ...DownloadableItem
+        }
+      }
+    }
+  }
+}
+    ${DownloadableItemFragmentDoc}`;
+const UpdatePasswordDocument = gql`
+    mutation updatePassword($id: ID!, $password: String!) {
+  updateUser(input: {id: $id, password: $password}) {
+    user {
+      id
+    }
+  }
+}
+    `;
+const WriteReviewDocument = gql`
+    mutation WriteReview($author: String!, $commentOn: Int!, $content: String!, $rating: Int!, $authorEmail: String!) {
+  writeReview(
+    input: {rating: $rating, author: $author, content: $content, commentOn: $commentOn, authorEmail: $authorEmail}
+  ) {
+    rating
+  }
+}
+    `;
+const defaultWrapper = (action, _operationName, _operationType, _variables) => action();
+function getSdk(client, withWrapper = defaultWrapper) {
+  return {
+    addToCart(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(AddToCartDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "addToCart", "mutation", variables);
+    },
+    applyCoupon(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(ApplyCouponDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "applyCoupon", "mutation", variables);
+    },
+    ChangeShippingCounty(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(ChangeShippingCountyDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "ChangeShippingCounty", "mutation", variables);
+    },
+    ChangeShippingMethod(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(ChangeShippingMethodDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "ChangeShippingMethod", "mutation", variables);
+    },
+    Checkout(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(CheckoutDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "Checkout", "mutation", variables);
+    },
+    EmptyCart(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(EmptyCartDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "EmptyCart", "mutation", variables);
+    },
+    getAllTerms(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetAllTermsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getAllTerms", "query", variables);
+    },
+    getAllowedCountries(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetAllowedCountriesDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getAllowedCountries", "query", variables);
+    },
+    getCart(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetCartDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getCart", "query", variables);
+    },
+    getDownloads(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetDownloadsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getDownloads", "query", variables);
+    },
+    getOrder(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetOrderDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getOrder", "query", variables);
+    },
+    getOrders(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetOrdersDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getOrders", "query", variables);
+    },
+    getProduct(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetProductDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getProduct", "query", variables);
+    },
+    getProductCategories(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetProductCategoriesDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getProductCategories", "query", variables);
+    },
+    getProducts(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetProductsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getProducts", "query", variables);
+    },
+    getStates(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetStatesDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getStates", "query", variables);
+    },
+    getStockStatus(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetStockStatusDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getStockStatus", "query", variables);
+    },
+    getStripePaymentIntent(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(GetStripePaymentIntentDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "getStripePaymentIntent", "query", variables);
+    },
+    login(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(LoginDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "login", "mutation", variables);
+    },
+    Logout(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(LogoutDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "Logout", "mutation", variables);
+    },
+    registerCustomer(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(RegisterCustomerDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "registerCustomer", "mutation", variables);
+    },
+    removeCoupons(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(RemoveCouponsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "removeCoupons", "mutation", variables);
+    },
+    ResetPasswordEmail(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(ResetPasswordEmailDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "ResetPasswordEmail", "mutation", variables);
+    },
+    ResetPasswordKey(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(ResetPasswordKeyDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "ResetPasswordKey", "mutation", variables);
+    },
+    UpDateCartQuantity(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(UpDateCartQuantityDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "UpDateCartQuantity", "mutation", variables);
+    },
+    UpdateCustomer(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(UpdateCustomerDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "UpdateCustomer", "mutation", variables);
+    },
+    updatePassword(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(UpdatePasswordDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "updatePassword", "mutation", variables);
+    },
+    WriteReview(variables, requestHeaders) {
+      return withWrapper((wrappedRequestHeaders) => client.request(WriteReviewDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), "WriteReview", "mutation", variables);
+    }
+  };
+}
+const GqlSdks = {
+  default: getSdk
+};
+const GqClientOps = { "default": ["addToCart", "applyCoupon", "ChangeShippingCounty", "ChangeShippingMethod", "Checkout", "EmptyCart", "Cart", "Customer", "Address", "DownloadableItem", "ExternalProduct", "Image", "OrderFragment", "ProductCategories", "SimpleProduct", "Terms", "VariableProduct", "VariationAttribute", "getAllTerms", "getAllowedCountries", "getCart", "Viewer", "PaymentGateway", "getDownloads", "getOrder", "getOrders", "getProduct", "ProductAttribute", "Comment", "getProductCategories", "ProductCategory", "getProducts", "getStates", "getStockStatus", "getStripePaymentIntent", "login", "Logout", "registerCustomer", "removeCoupons", "ResetPasswordEmail", "ResetPasswordKey", "UpDateCartQuantity", "UpdateCustomer", "updatePassword", "WriteReview"] };
+const GqlChangeShippingMethod = (...params) => useGql()("ChangeShippingMethod", ...params);
+const GqlCheckout = (...params) => useGql()("Checkout", ...params);
+const GqlEmptyCart = (...params) => useGql()("EmptyCart", ...params);
+const GqlLogout = (...params) => useGql()("Logout", ...params);
+const GqlResetPasswordEmail = (...params) => useGql()("ResetPasswordEmail", ...params);
+const GqlResetPasswordKey = (...params) => useGql()("ResetPasswordKey", ...params);
+const GqlUpDateCartQuantity = (...params) => useGql()("UpDateCartQuantity", ...params);
+const GqlUpdateCustomer = (...params) => useGql()("UpdateCustomer", ...params);
+const GqlAddToCart = (...params) => useGql()("addToCart", ...params);
+const GqlApplyCoupon = (...params) => useGql()("applyCoupon", ...params);
+const GqlGetAllowedCountries = (...params) => useGql()("getAllowedCountries", ...params);
+const GqlGetCart = (...params) => useGql()("getCart", ...params);
+const GqlGetDownloads = (...params) => useGql()("getDownloads", ...params);
+const GqlGetOrders = (...params) => useGql()("getOrders", ...params);
+const GqlGetStates = (...params) => useGql()("getStates", ...params);
+const GqlLogin = (...params) => useGql()("login", ...params);
+const GqlRegisterCustomer = (...params) => useGql()("registerCustomer", ...params);
+const GqlRemoveCoupons = (...params) => useGql()("removeCoupons", ...params);
+const isDefer = (dedupe) => dedupe === "defer" || dedupe === false;
+function useAsyncData(...args) {
+  var _b;
+  const autoKey = typeof args[args.length - 1] === "string" ? args.pop() : void 0;
+  if (typeof args[0] !== "string") {
+    args.unshift(autoKey);
+  }
+  let [key, _handler, options = {}] = args;
+  if (typeof key !== "string") {
+    throw new TypeError("[nuxt] [asyncData] key must be a string.");
+  }
+  if (typeof _handler !== "function") {
+    throw new TypeError("[nuxt] [asyncData] handler must be a function.");
+  }
+  const nuxtApp = useNuxtApp();
+  const handler = _handler ;
+  const getDefault = () => asyncDataDefaults.value;
+  const getDefaultCachedData = () => nuxtApp.isHydrating ? nuxtApp.payload.data[key] : nuxtApp.static.data[key];
+  options.server = options.server ?? true;
+  options.default = options.default ?? getDefault;
+  options.getCachedData = options.getCachedData ?? getDefaultCachedData;
+  options.lazy = options.lazy ?? false;
+  options.immediate = options.immediate ?? true;
+  options.deep = options.deep ?? asyncDataDefaults.deep;
+  options.dedupe = options.dedupe ?? "cancel";
+  const initialCachedData = options.getCachedData(key, nuxtApp);
+  const hasCachedData = initialCachedData != null;
+  if (!nuxtApp._asyncData[key] || !options.immediate) {
+    (_b = nuxtApp.payload._errors)[key] ?? (_b[key] = asyncDataDefaults.errorValue);
+    const _ref = options.deep ? ref : shallowRef;
+    nuxtApp._asyncData[key] = {
+      data: _ref(hasCachedData ? initialCachedData : options.default()),
+      pending: ref(!hasCachedData),
+      error: toRef(nuxtApp.payload._errors, key),
+      status: ref("idle"),
+      _default: options.default
+    };
+  }
+  const asyncData = { ...nuxtApp._asyncData[key] };
+  delete asyncData._default;
+  asyncData.refresh = asyncData.execute = (opts = {}) => {
+    if (nuxtApp._asyncDataPromises[key]) {
+      if (isDefer(opts.dedupe ?? options.dedupe)) {
+        return nuxtApp._asyncDataPromises[key];
+      }
+      nuxtApp._asyncDataPromises[key].cancelled = true;
+    }
+    if (opts._initial || nuxtApp.isHydrating && opts._initial !== false) {
+      const cachedData = opts._initial ? initialCachedData : options.getCachedData(key, nuxtApp);
+      if (cachedData != null) {
+        return Promise.resolve(cachedData);
+      }
+    }
+    asyncData.pending.value = true;
+    asyncData.status.value = "pending";
+    const promise = new Promise(
+      (resolve2, reject) => {
+        try {
+          resolve2(handler(nuxtApp));
+        } catch (err) {
+          reject(err);
+        }
+      }
+    ).then(async (_result) => {
+      if (promise.cancelled) {
+        return nuxtApp._asyncDataPromises[key];
+      }
+      let result = _result;
+      if (options.transform) {
+        result = await options.transform(_result);
+      }
+      if (options.pick) {
+        result = pick(result, options.pick);
+      }
+      nuxtApp.payload.data[key] = result;
+      asyncData.data.value = result;
+      asyncData.error.value = asyncDataDefaults.errorValue;
+      asyncData.status.value = "success";
+    }).catch((error) => {
+      if (promise.cancelled) {
+        return nuxtApp._asyncDataPromises[key];
+      }
+      asyncData.error.value = createError(error);
+      asyncData.data.value = unref(options.default());
+      asyncData.status.value = "error";
+    }).finally(() => {
+      if (promise.cancelled) {
+        return;
+      }
+      asyncData.pending.value = false;
+      delete nuxtApp._asyncDataPromises[key];
+    });
+    nuxtApp._asyncDataPromises[key] = promise;
+    return nuxtApp._asyncDataPromises[key];
+  };
+  asyncData.clear = () => clearNuxtDataByKey(nuxtApp, key);
+  const initialFetch = () => asyncData.refresh({ _initial: true });
+  const fetchOnServer = options.server !== false && nuxtApp.payload.serverRendered;
+  if (fetchOnServer && options.immediate) {
+    const promise = initialFetch();
+    if (getCurrentInstance()) {
+      onServerPrefetch(() => promise);
+    } else {
+      nuxtApp.hook("app:created", async () => {
+        await promise;
+      });
+    }
+  }
+  const asyncDataPromise = Promise.resolve(nuxtApp._asyncDataPromises[key]).then(() => asyncData);
+  Object.assign(asyncDataPromise, asyncData);
+  return asyncDataPromise;
+}
+function useLazyAsyncData(...args) {
+  const autoKey = typeof args[args.length - 1] === "string" ? args.pop() : void 0;
+  if (typeof args[0] !== "string") {
+    args.unshift(autoKey);
+  }
+  const [key, handler, options = {}] = args;
+  return useAsyncData(key, handler, { ...options, lazy: true }, null);
+}
+function clearNuxtDataByKey(nuxtApp, key) {
+  if (key in nuxtApp.payload.data) {
+    nuxtApp.payload.data[key] = void 0;
+  }
+  if (key in nuxtApp.payload._errors) {
+    nuxtApp.payload._errors[key] = asyncDataDefaults.errorValue;
+  }
+  if (nuxtApp._asyncData[key]) {
+    nuxtApp._asyncData[key].data.value = nuxtApp._asyncData[key]._default();
+    nuxtApp._asyncData[key].error.value = asyncDataDefaults.errorValue;
+    nuxtApp._asyncData[key].pending.value = false;
+    nuxtApp._asyncData[key].status.value = "idle";
+  }
+  if (key in nuxtApp._asyncDataPromises) {
+    if (nuxtApp._asyncDataPromises[key]) {
+      nuxtApp._asyncDataPromises[key].cancelled = true;
+    }
+    nuxtApp._asyncDataPromises[key] = void 0;
+  }
+}
+function pick(obj, keys) {
+  const newObj = {};
+  for (const key of keys) {
+    newObj[key] = obj[key];
+  }
+  return newObj;
+}
+const getGqlClient = (client, state) => {
+  var _a;
+  if (!state) {
+    state = useGqlState();
+  }
+  return client || (((_a = state.value) == null ? void 0 : _a.default) ? "default" : Object.keys(state.value)[0]);
+};
+const useGqlState = () => {
+  const nuxtApp = useNuxtApp();
+  if (!nuxtApp._gqlState) {
+    throw new Error("GQL State is not available.");
+  }
+  return nuxtApp == null ? void 0 : nuxtApp._gqlState;
+};
+const setGqlState = ({ client, patch }) => {
+  var _a;
+  const state = useGqlState();
+  client = getGqlClient(client, state);
+  const resetToken = (patch == null ? void 0 : patch.token) && !patch.token.value;
+  const resetHeaders = (patch == null ? void 0 : patch.headers) && !Object.keys(patch.headers).length;
+  state.value[client].options = defu(patch, {
+    ...(_a = state.value[client]) == null ? void 0 : _a.options,
+    ...resetToken && { token: void 0 },
+    ...resetHeaders && { headers: void 0 }
+  });
+};
+function useGqlHeaders(...args) {
+  var _a, _b, _c, _d, _e, _f, _g;
+  const client = args[1] || ((_a = args == null ? void 0 : args[0]) == null ? void 0 : _a.client);
+  let headers = args[0] && typeof args[0] !== "undefined" && "headers" in args[0] ? args[0].headers : args[0];
+  const respectDefaults = (_b = args == null ? void 0 : args[0]) == null ? void 0 : _b.respectDefaults;
+  headers = headers || {};
+  setGqlState({ client, patch: { headers } });
+  if (respectDefaults && !Object.keys(headers).length) {
+    const defaultHeaders = (_g = (_f = (_e = (_d = (_c = /* @__PURE__ */ useRuntimeConfig()) == null ? void 0 : _c.public) == null ? void 0 : _d["graphql-client"]) == null ? void 0 : _e.clients) == null ? void 0 : _f[client || "default"]) == null ? void 0 : _g.headers;
+    const serverHeaders = typeof (defaultHeaders == null ? void 0 : defaultHeaders.serverOnly) === "object" && (defaultHeaders == null ? void 0 : defaultHeaders.serverOnly) || void 0;
+    if (defaultHeaders == null ? void 0 : defaultHeaders.serverOnly) {
+      delete defaultHeaders.serverOnly;
+    }
+    headers = { ...defaultHeaders, ...serverHeaders };
+    setGqlState({ client, patch: { headers } });
+  }
+}
+function useGql() {
+  const state = useGqlState();
+  const errState = useGqlErrorState();
+  return (...args) => {
+    var _a;
+    const operation = (typeof (args == null ? void 0 : args[0]) !== "string" && "operation" in (args == null ? void 0 : args[0]) ? args[0].operation : args[0]) ?? void 0;
+    const variables = (typeof (args == null ? void 0 : args[0]) !== "string" && "variables" in (args == null ? void 0 : args[0]) ? args[0].variables : args[1]) ?? void 0;
+    const client = Object.keys(GqClientOps).find((k2) => GqClientOps[k2].includes(operation)) ?? "default";
+    const { instance } = (_a = state.value) == null ? void 0 : _a[client];
+    if (!instance) {
+      throw new Error("Invalid GraphQL Operation");
+    }
+    return GqlSdks[client](instance, async (action, operationName, operationType) => {
+      var _a2, _b, _c, _d;
+      try {
+        return await action();
+      } catch (err) {
+        errState.value = {
+          client,
+          operationType,
+          operationName,
+          statusCode: (_a2 = err == null ? void 0 : err.response) == null ? void 0 : _a2.status,
+          gqlErrors: ((_b = err == null ? void 0 : err.response) == null ? void 0 : _b.errors) || ((_c = err == null ? void 0 : err.response) == null ? void 0 : _c.message) && [{ message: (_d = err == null ? void 0 : err.response) == null ? void 0 : _d.message }] || []
+        };
+        if (state.value.onError) {
+          state.value.onError(errState.value);
+        }
+        throw errState.value;
+      }
+    })[operation](variables);
+  };
+}
+const useGqlErrorState = () => useState("_gqlErrors", () => null);
+function useAsyncGql(...args) {
+  const toReactive = (v2) => v2 && isRef(v2) ? v2 : reactive(v2);
+  const options = (typeof (args == null ? void 0 : args[0]) !== "string" && "options" in (args == null ? void 0 : args[0]) ? args[0].options : args[2]) ?? {};
+  const operation = (typeof (args == null ? void 0 : args[0]) !== "string" && "operation" in (args == null ? void 0 : args[0]) ? args[0].operation : args[0]) ?? void 0;
+  const variables = (typeof (args == null ? void 0 : args[0]) !== "string" && "variables" in (args == null ? void 0 : args[0]) ? toReactive(args[0].variables) : args[1] && toReactive(args[1])) ?? void 0;
+  if (variables) {
+    options.watch = options.watch || [];
+    options.watch.push(variables);
+  }
+  const key = `gql:data:${hash({ operation, variables })}`;
+  return useAsyncData(key, () => useGql()(operation, unref(variables)), options);
+}
+const useAuth = () => {
+  const { refreshCart } = useCart();
+  const { logGQLError, clearAllCookies } = useHelpers();
+  const router = useRouter();
+  const customer = useState("customer", () => ({ billing: {}, shipping: {} }));
+  const viewer = useState("viewer", () => null);
+  const isPending = useState("isPending", () => false);
+  const orders = useState("orders", () => null);
+  const downloads = useState("downloads", () => null);
+  const loginUser = async (credentials) => {
+    var _a, _b;
+    isPending.value = true;
+    try {
+      const { loginWithCookies } = await GqlLogin(credentials);
+      if ((loginWithCookies == null ? void 0 : loginWithCookies.status) === "SUCCESS") {
+        await refreshCart();
+        if (viewer === null) {
+          return {
+            success: false,
+            error: "Your credentials are correct, but there was an error logging in. This is most likely due to an SSL error. Please try again later. If the problem persists, please contact support."
+          };
+        }
+      }
+      return {
+        success: true,
+        error: null
+      };
+    } catch (error) {
+      logGQLError(error);
+      return {
+        success: false,
+        error: (_b = (_a = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _a[0]) == null ? void 0 : _b.message
+      };
+    } finally {
+      isPending.value = false;
+    }
+  };
+  const logoutUser = async () => {
+    isPending.value = true;
+    try {
+      const { logout } = await GqlLogout();
+      if (logout) {
+        await refreshCart();
+        clearAllCookies();
+        viewer.value = null;
+        customer.value = { billing: {}, shipping: {} };
+      }
+      return { success: true, error: null };
+    } catch (error) {
+      logGQLError(error);
+      return { success: false, error };
+    } finally {
+      isPending.value = false;
+      router.push("/my-account");
+    }
+  };
+  const registerUser = async (userInfo) => {
+    var _a;
+    isPending.value = true;
+    try {
+      await GqlRegisterCustomer({ input: userInfo });
+      return { success: true, error: null };
+    } catch (error) {
+      logGQLError(error);
+      const gqlError = (_a = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _a[0];
+      isPending.value = false;
+      return { success: false, error: gqlError == null ? void 0 : gqlError.message };
+    }
+  };
+  const updateCustomer = (payload) => {
+    const sessionToken = payload == null ? void 0 : payload.sessionToken;
+    if (sessionToken) {
+      useGqlHeaders({ "woocommerce-session": `Session ${sessionToken}` });
+      const newToken = useCookie("woocommerce-session");
+      newToken.value = sessionToken;
+    }
+    customer.value = payload;
+    isPending.value = false;
+  };
+  const updateViewer = (payload) => {
+    viewer.value = payload;
+    isPending.value = false;
+  };
+  const sendResetPasswordEmail = async (email) => {
+    var _a;
+    try {
+      isPending.value = true;
+      const { sendPasswordResetEmail } = await GqlResetPasswordEmail({ username: email });
+      if (sendPasswordResetEmail == null ? void 0 : sendPasswordResetEmail.success) {
+        isPending.value = false;
+        return { success: true, error: null };
+      }
+      return { success: false, error: "There was an error sending the reset password email. Please try again later." };
+    } catch (error) {
+      logGQLError(error);
+      isPending.value = false;
+      const gqlError = (_a = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _a[0];
+      return { success: false, error: gqlError == null ? void 0 : gqlError.message };
+    }
+  };
+  const resetPasswordWithKey = async ({
+    key,
+    login,
+    password
+  }) => {
+    var _a, _b;
+    try {
+      isPending.value = true;
+      const { resetUserPassword } = await GqlResetPasswordKey({ key, login, password });
+      const wasPasswordReset = Boolean((_a = resetUserPassword == null ? void 0 : resetUserPassword.user) == null ? void 0 : _a.id);
+      if (wasPasswordReset) {
+        isPending.value = false;
+        return { success: true, error: null };
+      }
+      return { success: false, error: "There was an error resetting the password. Please try again later." };
+    } catch (error) {
+      isPending.value = false;
+      const gqlError = (_b = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _b[0];
+      return { success: false, error: gqlError == null ? void 0 : gqlError.message };
+    }
+  };
+  const getOrders = async () => {
+    var _a, _b;
+    try {
+      const { customer: customer2 } = await GqlGetOrders();
+      if (customer2) {
+        orders.value = ((_a = customer2.orders) == null ? void 0 : _a.nodes) ?? [];
+        return { success: true, error: null };
+      }
+      return { success: false, error: "There was an error getting your orders. Please try again later." };
+    } catch (error) {
+      logGQLError(error);
+      const gqlError = (_b = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _b[0];
+      return { success: false, error: gqlError == null ? void 0 : gqlError.message };
+    }
+  };
+  const getDownloads = async () => {
+    var _a, _b;
+    try {
+      const { customer: customer2 } = await GqlGetDownloads();
+      if (customer2) {
+        downloads.value = ((_a = customer2.downloadableItems) == null ? void 0 : _a.nodes) ?? [];
+        return { success: true, error: null };
+      }
+      return { success: false, error: "There was an error getting your downloads. Please try again later." };
+    } catch (error) {
+      logGQLError(error);
+      const gqlError = (_b = error == null ? void 0 : error.gqlErrors) == null ? void 0 : _b[0];
+      return { success: false, error: gqlError == null ? void 0 : gqlError.message };
+    }
+  };
+  const avatar = computed(() => {
+    var _a, _b;
+    return ((_b = (_a = viewer.value) == null ? void 0 : _a.avatar) == null ? void 0 : _b.url) ?? null;
+  });
+  const wishlistLink = computed(() => viewer.value ? "/my-account?tab=wishlist" : "/wishlist");
+  return {
+    viewer,
+    customer,
+    isPending,
+    orders,
+    downloads,
+    avatar,
+    wishlistLink,
+    loginUser,
+    updateCustomer,
+    updateViewer,
+    logoutUser,
+    registerUser,
+    sendResetPasswordEmail,
+    resetPasswordWithKey,
+    getOrders,
+    getDownloads
+  };
+};
+function useCart() {
+  const { storeSettings } = useAppConfig();
+  const cart = useState("cart", () => null);
+  const isShowingCart = useState("isShowingCart", () => false);
+  const isUpdatingCart = useState("isUpdatingCart", () => false);
+  const isUpdatingCoupon = useState("isUpdatingCoupon", () => false);
+  const paymentGateways = useState("paymentGateways", () => null);
+  const { logGQLError, clearAllCookies } = useHelpers();
+  async function refreshCart() {
+    try {
+      const { cart: cart2, customer, viewer, paymentGateways: paymentGateways2 } = await GqlGetCart();
+      const { updateCustomer, updateViewer } = useAuth();
+      if (cart2) updateCart(cart2);
+      if (customer) updateCustomer(customer);
+      if (viewer) updateViewer(viewer);
+      if (paymentGateways2) updatePaymentGateways(paymentGateways2);
+      return true;
+    } catch (error) {
+      logGQLError(error);
+      clearAllCookies();
+      resetInitialState();
+      return false;
+    }
+  }
+  function resetInitialState() {
+    cart.value = null;
+    paymentGateways.value = null;
+  }
+  function updateCart(payload) {
+    cart.value = payload || null;
+  }
+  function updatePaymentGateways(payload) {
+    paymentGateways.value = payload;
+  }
+  function toggleCart(state = void 0) {
+    isShowingCart.value = state ?? !isShowingCart.value;
+  }
+  async function addToCart(input) {
+    isUpdatingCart.value = true;
+    try {
+      const { addToCart: addToCart2 } = await GqlAddToCart({ input });
+      if (addToCart2 == null ? void 0 : addToCart2.cart) cart.value = addToCart2.cart;
+      const { storeSettings: storeSettings2 } = useAppConfig();
+      if (storeSettings2.autoOpenCart && !isShowingCart.value) toggleCart(true);
+    } catch (error) {
+      logGQLError(error);
+    }
+  }
+  async function removeItem(key) {
+    isUpdatingCart.value = true;
+    const { updateItemQuantities } = await GqlUpDateCartQuantity({ key, quantity: 0 });
+    updateCart(updateItemQuantities == null ? void 0 : updateItemQuantities.cart);
+  }
+  async function updateItemQuantity(key, quantity) {
+    isUpdatingCart.value = true;
+    try {
+      const { updateItemQuantities } = await GqlUpDateCartQuantity({ key, quantity });
+      updateCart(updateItemQuantities == null ? void 0 : updateItemQuantities.cart);
+    } catch (error) {
+      logGQLError(error);
+    }
+  }
+  async function emptyCart() {
+    try {
+      isUpdatingCart.value = true;
+      const { emptyCart: emptyCart2 } = await GqlEmptyCart();
+      updateCart(emptyCart2 == null ? void 0 : emptyCart2.cart);
+    } catch (error) {
+      logGQLError(error);
+    }
+  }
+  async function updateShippingMethod(shippingMethods) {
+    isUpdatingCart.value = true;
+    const { updateShippingMethod: updateShippingMethod2 } = await GqlChangeShippingMethod({ shippingMethods });
+    updateCart(updateShippingMethod2 == null ? void 0 : updateShippingMethod2.cart);
+  }
+  async function applyCoupon(code2) {
+    try {
+      isUpdatingCoupon.value = true;
+      const { applyCoupon: applyCoupon2 } = await GqlApplyCoupon({ code: code2 });
+      updateCart(applyCoupon2 == null ? void 0 : applyCoupon2.cart);
+      isUpdatingCoupon.value = false;
+    } catch (error) {
+      isUpdatingCoupon.value = false;
+      logGQLError(error);
+    }
+    return { message: null };
+  }
+  async function removeCoupon(code2) {
+    try {
+      isUpdatingCart.value = true;
+      const { removeCoupons } = await GqlRemoveCoupons({ codes: [code2] });
+      updateCart(removeCoupons == null ? void 0 : removeCoupons.cart);
+    } catch (error) {
+      logGQLError(error);
+      isUpdatingCart.value = false;
+    }
+  }
+  watch(cart, (val) => {
+    isUpdatingCart.value = false;
+  });
+  const allProductsAreVirtual = computed(() => {
+    var _a, _b;
+    const nodes = ((_b = (_a = cart.value) == null ? void 0 : _a.contents) == null ? void 0 : _b.nodes) || [];
+    return nodes.length === 0 ? false : nodes.every((node) => {
+      var _a2, _b2;
+      return ((_b2 = (_a2 = node.product) == null ? void 0 : _a2.node) == null ? void 0 : _b2.virtual) === true;
+    });
+  });
+  const isBillingAddressEnabled = computed(() => storeSettings.hideBillingAddressForVirtualProducts ? !allProductsAreVirtual.value : true);
+  return {
+    cart,
+    isShowingCart,
+    isUpdatingCart,
+    isUpdatingCoupon,
+    paymentGateways,
+    isBillingAddressEnabled,
+    updateCart,
+    refreshCart,
+    toggleCart,
+    addToCart,
+    removeItem,
+    updateItemQuantity,
+    emptyCart,
+    updateShippingMethod,
+    applyCoupon,
+    removeCoupon
+  };
+}
+const init_wIGCIxHxFb = /* @__PURE__ */ defineNuxtPlugin(async (nuxtApp) => {
+});
+const plugins = [
+  unhead_KgADcZ0jPj,
+  plugin,
+  revive_payload_server_eJ33V7gbc6,
+  components_plugin_zlvi6dcIsi,
+  switch_locale_path_ssr_5csfIgkrBP,
+  i18n_sq1MuCrqbC,
+  plugin_WLsn00x1qh,
+  plugin_jBToDIZpFa,
+  init_wIGCIxHxFb
+];
+async function loadIcon(name2, timeout) {
+  if (!name2)
+    return null;
+  const _icon = getIcon(name2);
+  if (_icon)
+    return _icon;
+  let timeoutWarn;
+  const load = loadIcon$1(name2).catch(() => {
+    consola.warn(`[Icon] failed to load icon \`${name2}\``);
+    return null;
+  }).finally(() => clearTimeout(timeoutWarn));
+  if (timeout > 0)
+    await Promise.race([load, new Promise((resolve2) => {
+      timeoutWarn = setTimeout(() => {
+        consola.warn(`[Icon] loading icon \`${name2}\` timed out after ${timeout}ms`);
+        resolve2();
+      }, timeout);
+    })]);
+  else
+    await load;
+  return getIcon(name2);
+}
+function useResolvedName(getName) {
+  const options = useAppConfig().icon;
+  const collections = (options.collections || []).sort((a, b2) => b2.length - a.length);
+  return computed(() => {
+    var _a;
+    const name2 = getName();
+    const bare = name2.startsWith(options.cssSelectorPrefix) ? name2.slice(options.cssSelectorPrefix.length) : name2;
+    const resolved = ((_a = options.aliases) == null ? void 0 : _a[bare]) || bare;
+    if (!resolved.includes(":")) {
+      const collection = collections.find((c) => resolved.startsWith(c + "-"));
+      return collection ? collection + ":" + resolved.slice(collection.length + 1) : resolved;
+    }
+    return resolved;
+  });
+}
+const SYMBOL_SERVER_CSS = "NUXT_ICONS_SERVER_CSS";
+function escapeCssSelector(selector) {
+  return selector.replace(/([^\w-])/g, "\\$1");
+}
+const NuxtIconCss = /* @__PURE__ */ defineComponent({
+  name: "NuxtIconCss",
+  props: {
+    name: {
+      type: String,
+      required: true
+    },
+    customize: {
+      type: Function,
+      required: false
+    }
+  },
+  setup(props) {
+    var _a;
+    const nuxt = useNuxtApp();
+    const options = useAppConfig().icon;
+    const cssClass = computed(() => props.name ? options.cssSelectorPrefix + props.name : "");
+    const selector = computed(() => "." + escapeCssSelector(cssClass.value));
+    function getCSS(icon, withLayer = true) {
+      let iconSelector = selector.value;
+      if (options.cssWherePseudo) {
+        iconSelector = `:where(${iconSelector})`;
+      }
+      const css = getIconCSS(icon, {
+        iconSelector,
+        format: "compressed",
+        customise: props.customize
+      });
+      if (options.cssLayer && withLayer) {
+        return `@layer ${options.cssLayer} { ${css} }`;
+      }
+      return css;
+    }
+    {
+      const configs = (/* @__PURE__ */ useRuntimeConfig()).icon || {};
+      if (!((_a = configs == null ? void 0 : configs.serverKnownCssClasses) == null ? void 0 : _a.includes(cssClass.value))) {
+        onServerPrefetch(async () => {
+          const icon = await loadIcon(props.name, options.fetchTimeout).catch(() => null);
+          if (!icon)
+            return null;
+          let ssrCSS = nuxt.vueApp._context.provides[SYMBOL_SERVER_CSS];
+          if (!ssrCSS) {
+            ssrCSS = nuxt.vueApp._context.provides[SYMBOL_SERVER_CSS] = /* @__PURE__ */ new Map();
+            nuxt.runWithContext(() => {
+              useHead({
+                style: [
+                  () => {
+                    const sep = "";
+                    let css = Array.from(ssrCSS.values()).sort().join(sep);
+                    if (options.cssLayer) {
+                      css = `@layer ${options.cssLayer} {${sep}${css}${sep}}`;
+                    }
+                    return { innerHTML: css };
+                  }
+                ]
+              }, {
+                tagPriority: "low"
+              });
+            });
+          }
+          if (props.name && !ssrCSS.has(props.name)) {
+            const css = getCSS(icon, false);
+            ssrCSS.set(props.name, css);
+          }
+          return null;
+        });
+      }
+    }
+    return () => h("span", { class: ["iconify", cssClass.value, options.class] });
+  }
+});
+const NuxtIconSvg = /* @__PURE__ */ defineComponent({
+  name: "NuxtIconSvg",
+  props: {
+    name: {
+      type: String,
+      required: true
+    },
+    customize: {
+      type: Function,
+      required: false
+    }
+  },
+  async setup(props, { slots }) {
+    useNuxtApp();
+    const options = useAppConfig().icon;
+    const name2 = useResolvedName(() => props.name);
+    const storeKey = "i-" + name2.value;
+    if (name2.value) {
+      {
+        useAsyncData(
+          storeKey,
+          () => loadIcon(name2.value, options.fetchTimeout),
+          { deep: false }
+        );
+      }
+    }
+    return () => h(Icon, {
+      icon: name2.value,
+      ssr: true,
+      class: options.class,
+      // Iconify uses `customise`, where we expose `customize` for consistency
+      customise: props.customize
+    }, slots);
+  }
+});
+const __nuxt_component_0 = defineComponent({
+  name: "NuxtIcon",
+  props: {
+    name: {
+      type: String,
+      required: true
+    },
+    mode: {
+      type: String,
+      required: false,
+      default: null
+    },
+    size: {
+      type: [Number, String],
+      required: false,
+      default: null
+    },
+    customize: {
+      type: Function,
+      required: false
+    }
+  },
+  async setup(props, { slots }) {
+    const nuxtApp = useNuxtApp();
+    const runtimeOptions = useAppConfig().icon;
+    const name2 = useResolvedName(() => props.name);
+    const component = computed(
+      () => {
+        var _a;
+        return ((_a = nuxtApp.vueApp) == null ? void 0 : _a.component(name2.value)) || ((props.mode || runtimeOptions.mode) === "svg" ? NuxtIconSvg : NuxtIconCss);
+      }
+    );
+    const style = computed(() => {
+      const size = props.size || runtimeOptions.size;
+      return size ? { fontSize: Number.isNaN(+size) ? size : size + "px" } : null;
+    });
+    const customize = props.customize || runtimeOptions.customize;
+    return () => h(
+      component.value,
+      {
+        ...runtimeOptions.attrs,
+        name: name2.value,
+        class: runtimeOptions.class,
+        style: style.value,
+        customize
+      },
+      slots
+    );
+  }
+});
+const index = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: __nuxt_component_0
+}, Symbol.toStringTag, { value: "Module" }));
+const _sfc_main$b = /* @__PURE__ */ defineComponent({
+  __name: "MenuTrigger",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const { toggleMobileMenu } = useHelpers();
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_Icon = __nuxt_component_0;
+      _push(ssrRenderComponent(_component_Icon, mergeProps({
+        name: "ion:menu-outline",
+        size: "32",
+        class: "cursor-pointer",
+        onClick: unref(toggleMobileMenu)
+      }, _attrs), null, _parent));
+    };
+  }
+});
+const _sfc_setup$b = _sfc_main$b.setup;
+_sfc_main$b.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/generalElements/MenuTrigger.vue");
+  return _sfc_setup$b ? _sfc_setup$b(props, ctx) : void 0;
+};
+async function preloadRouteComponents(to, router = useRouter()) {
+  {
+    return;
+  }
+}
+const firstNonUndefined = (...args) => args.find((arg) => arg !== void 0);
+// @__NO_SIDE_EFFECTS__
+function defineNuxtLink(options) {
+  const componentName = options.componentName || "NuxtLink";
+  function resolveTrailingSlashBehavior(to, resolve2) {
+    if (!to || options.trailingSlash !== "append" && options.trailingSlash !== "remove") {
+      return to;
+    }
+    if (typeof to === "string") {
+      return applyTrailingSlashBehavior(to, options.trailingSlash);
+    }
+    const path = "path" in to && to.path !== void 0 ? to.path : resolve2(to).path;
+    const resolvedPath = {
+      ...to,
+      name: void 0,
+      // named routes would otherwise always override trailing slash behavior
+      path: applyTrailingSlashBehavior(path, options.trailingSlash)
+    };
+    return resolvedPath;
+  }
+  function useNuxtLink(props) {
+    const router = useRouter();
+    const config = /* @__PURE__ */ useRuntimeConfig();
+    const hasTarget = computed(() => !!props.target && props.target !== "_self");
+    const isAbsoluteUrl = computed(() => {
+      const path = props.to || props.href || "";
+      return typeof path === "string" && hasProtocol(path, { acceptRelative: true });
+    });
+    const builtinRouterLink = resolveComponent("RouterLink");
+    const useBuiltinLink = builtinRouterLink && typeof builtinRouterLink !== "string" ? builtinRouterLink.useLink : void 0;
+    const isExternal = computed(() => {
+      if (props.external) {
+        return true;
+      }
+      const path = props.to || props.href || "";
+      if (typeof path === "object") {
+        return false;
+      }
+      return path === "" || isAbsoluteUrl.value;
+    });
+    const to = computed(() => {
+      const path = props.to || props.href || "";
+      if (isExternal.value) {
+        return path;
+      }
+      return resolveTrailingSlashBehavior(path, router.resolve);
+    });
+    const link = isExternal.value ? void 0 : useBuiltinLink == null ? void 0 : useBuiltinLink({ ...props, to });
+    const href = computed(() => {
+      var _a;
+      if (!to.value || isAbsoluteUrl.value) {
+        return to.value;
+      }
+      if (isExternal.value) {
+        const path = typeof to.value === "object" && "path" in to.value ? resolveRouteObject(to.value) : to.value;
+        const href2 = typeof path === "object" ? router.resolve(path).href : path;
+        return resolveTrailingSlashBehavior(
+          href2,
+          router.resolve
+          /* will not be called */
+        );
+      }
+      if (typeof to.value === "object") {
+        return ((_a = router.resolve(to.value)) == null ? void 0 : _a.href) ?? null;
+      }
+      return resolveTrailingSlashBehavior(
+        joinURL(config.app.baseURL, to.value),
+        router.resolve
+        /* will not be called */
+      );
+    });
+    return {
+      to,
+      hasTarget,
+      isAbsoluteUrl,
+      isExternal,
+      //
+      href,
+      isActive: (link == null ? void 0 : link.isActive) ?? computed(() => to.value === router.currentRoute.value.path),
+      isExactActive: (link == null ? void 0 : link.isExactActive) ?? computed(() => to.value === router.currentRoute.value.path),
+      route: (link == null ? void 0 : link.route) ?? computed(() => router.resolve(to.value)),
+      async navigate() {
+        await navigateTo(href.value, { replace: props.replace, external: isExternal.value || hasTarget.value });
+      }
+    };
+  }
+  return defineComponent({
+    name: componentName,
+    props: {
+      // Routing
+      to: {
+        type: [String, Object],
+        default: void 0,
+        required: false
+      },
+      href: {
+        type: [String, Object],
+        default: void 0,
+        required: false
+      },
+      // Attributes
+      target: {
+        type: String,
+        default: void 0,
+        required: false
+      },
+      rel: {
+        type: String,
+        default: void 0,
+        required: false
+      },
+      noRel: {
+        type: Boolean,
+        default: void 0,
+        required: false
+      },
+      // Prefetching
+      prefetch: {
+        type: Boolean,
+        default: void 0,
+        required: false
+      },
+      prefetchOn: {
+        type: [String, Object],
+        default: void 0,
+        required: false
+      },
+      noPrefetch: {
+        type: Boolean,
+        default: void 0,
+        required: false
+      },
+      // Styling
+      activeClass: {
+        type: String,
+        default: void 0,
+        required: false
+      },
+      exactActiveClass: {
+        type: String,
+        default: void 0,
+        required: false
+      },
+      prefetchedClass: {
+        type: String,
+        default: void 0,
+        required: false
+      },
+      // Vue Router's `<RouterLink>` additional props
+      replace: {
+        type: Boolean,
+        default: void 0,
+        required: false
+      },
+      ariaCurrentValue: {
+        type: String,
+        default: void 0,
+        required: false
+      },
+      // Edge cases handling
+      external: {
+        type: Boolean,
+        default: void 0,
+        required: false
+      },
+      // Slot API
+      custom: {
+        type: Boolean,
+        default: void 0,
+        required: false
+      }
+    },
+    useLink: useNuxtLink,
+    setup(props, { slots }) {
+      const router = useRouter();
+      const { to, href, navigate: navigate2, isExternal, hasTarget, isAbsoluteUrl } = useNuxtLink(props);
+      const prefetched = ref(false);
+      const el = void 0;
+      const elRef = void 0;
+      function shouldPrefetch(mode) {
+        var _a, _b;
+        return !prefetched.value && (typeof props.prefetchOn === "string" ? props.prefetchOn === mode : ((_a = props.prefetchOn) == null ? void 0 : _a[mode]) ?? ((_b = options.prefetchOn) == null ? void 0 : _b[mode])) && (props.prefetch ?? options.prefetch) !== false && props.noPrefetch !== true && props.target !== "_blank" && !isSlowConnection();
+      }
+      async function prefetch(nuxtApp = useNuxtApp()) {
+        if (prefetched.value) {
+          return;
+        }
+        prefetched.value = true;
+        const path = typeof to.value === "string" ? to.value : isExternal.value ? resolveRouteObject(to.value) : router.resolve(to.value).fullPath;
+        await Promise.all([
+          nuxtApp.hooks.callHook("link:prefetch", path).catch(() => {
+          }),
+          !isExternal.value && !hasTarget.value && preloadRouteComponents(to.value, router).catch(() => {
+          })
+        ]);
+      }
+      return () => {
+        var _a;
+        if (!isExternal.value && !hasTarget.value) {
+          const routerLinkProps = {
+            ref: elRef,
+            to: to.value,
+            activeClass: props.activeClass || options.activeClass,
+            exactActiveClass: props.exactActiveClass || options.exactActiveClass,
+            replace: props.replace,
+            ariaCurrentValue: props.ariaCurrentValue,
+            custom: props.custom
+          };
+          if (!props.custom) {
+            if (shouldPrefetch("interaction")) {
+              routerLinkProps.onPointerenter = prefetch.bind(null, void 0);
+              routerLinkProps.onFocus = prefetch.bind(null, void 0);
+            }
+            if (prefetched.value) {
+              routerLinkProps.class = props.prefetchedClass || options.prefetchedClass;
+            }
+            routerLinkProps.rel = props.rel || void 0;
+          }
+          return h(
+            resolveComponent("RouterLink"),
+            routerLinkProps,
+            slots.default
+          );
+        }
+        const target = props.target || null;
+        const rel = firstNonUndefined(
+          // converts `""` to `null` to prevent the attribute from being added as empty (`rel=""`)
+          props.noRel ? "" : props.rel,
+          options.externalRelAttribute,
+          /*
+          * A fallback rel of `noopener noreferrer` is applied for external links or links that open in a new tab.
+          * This solves a reverse tabnapping security flaw in browsers pre-2021 as well as improving privacy.
+          */
+          isAbsoluteUrl.value || hasTarget.value ? "noopener noreferrer" : ""
+        ) || null;
+        if (props.custom) {
+          if (!slots.default) {
+            return null;
+          }
+          return slots.default({
+            href: href.value,
+            navigate: navigate2,
+            prefetch,
+            get route() {
+              if (!href.value) {
+                return void 0;
+              }
+              const url = new URL(href.value, "http://localhost");
+              return {
+                path: url.pathname,
+                fullPath: url.pathname,
+                get query() {
+                  return parseQuery(url.search);
+                },
+                hash: url.hash,
+                params: {},
+                name: void 0,
+                matched: [],
+                redirectedFrom: void 0,
+                meta: {},
+                href: href.value
+              };
+            },
+            rel,
+            target,
+            isExternal: isExternal.value || hasTarget.value,
+            isActive: false,
+            isExactActive: false
+          });
+        }
+        return h("a", { ref: el, href: href.value || null, rel, target }, (_a = slots.default) == null ? void 0 : _a.call(slots));
+      };
+    }
+  });
+}
+const __nuxt_component_10 = /* @__PURE__ */ defineNuxtLink(nuxtLinkDefaults);
+function applyTrailingSlashBehavior(to, trailingSlash) {
+  const normalizeFn = trailingSlash === "append" ? withTrailingSlash : withoutTrailingSlash;
+  const hasProtocolDifferentFromHttp = hasProtocol(to) && !to.startsWith("http");
+  if (hasProtocolDifferentFromHttp) {
+    return to;
+  }
+  return normalizeFn(to, true);
+}
+function isSlowConnection() {
+  {
+    return;
+  }
+}
+async function imageMeta(_ctx, url) {
+  const meta = await _imageMeta(url).catch((err) => {
+    console.error("Failed to get image meta for " + url, err + "");
+    return {
+      width: 0,
+      height: 0,
+      ratio: 0
+    };
+  });
+  return meta;
+}
+async function _imageMeta(url) {
+  {
+    const imageMeta2 = await import('image-meta').then((r) => r.imageMeta);
+    const data = await fetch(url).then((res) => res.buffer());
+    const metadata = imageMeta2(data);
+    if (!metadata) {
+      throw new Error(`No metadata could be extracted from the image \`${url}\`.`);
+    }
+    const { width, height } = metadata;
+    const meta = {
+      width,
+      height,
+      ratio: width && height ? width / height : void 0
+    };
+    return meta;
+  }
+}
+function createMapper(map) {
+  return (key) => {
+    return key ? map[key] || key : map.missingValue;
+  };
+}
+function createOperationsGenerator({ formatter, keyMap, joinWith = "/", valueMap } = {}) {
+  if (!formatter) {
+    formatter = (key, value) => `${key}=${value}`;
+  }
+  if (keyMap && typeof keyMap !== "function") {
+    keyMap = createMapper(keyMap);
+  }
+  const map = valueMap || {};
+  Object.keys(map).forEach((valueKey) => {
+    if (typeof map[valueKey] !== "function") {
+      map[valueKey] = createMapper(map[valueKey]);
+    }
+  });
+  return (modifiers = {}) => {
+    const operations = Object.entries(modifiers).filter(([_, value]) => typeof value !== "undefined").map(([key, value]) => {
+      const mapper = map[key];
+      if (typeof mapper === "function") {
+        value = mapper(modifiers[key]);
+      }
+      key = typeof keyMap === "function" ? keyMap(key) : key;
+      return formatter(key, value);
+    });
+    return operations.join(joinWith);
+  };
+}
+function parseSize(input = "") {
+  if (typeof input === "number") {
+    return input;
+  }
+  if (typeof input === "string") {
+    if (input.replace("px", "").match(/^\d+$/g)) {
+      return Number.parseInt(input, 10);
+    }
+  }
+}
+function parseDensities(input = "") {
+  if (input === void 0 || !input.length) {
+    return [];
+  }
+  const densities = /* @__PURE__ */ new Set();
+  for (const density of input.split(" ")) {
+    const d = Number.parseInt(density.replace("x", ""));
+    if (d) {
+      densities.add(d);
+    }
+  }
+  return Array.from(densities);
+}
+function checkDensities(densities) {
+  if (densities.length === 0) {
+    throw new Error("`densities` must not be empty, configure to `1` to render regular size only (DPR 1.0)");
+  }
+}
+function parseSizes(input) {
+  const sizes = {};
+  if (typeof input === "string") {
+    for (const entry2 of input.split(/[\s,]+/).filter((e) => e)) {
+      const s = entry2.split(":");
+      if (s.length !== 2) {
+        sizes["1px"] = s[0].trim();
+      } else {
+        sizes[s[0].trim()] = s[1].trim();
+      }
+    }
+  } else {
+    Object.assign(sizes, input);
+  }
+  return sizes;
+}
+function createImage(globalOptions) {
+  const ctx = {
+    options: globalOptions
+  };
+  const getImage2 = (input, options = {}) => {
+    const image = resolveImage(ctx, input, options);
+    return image;
+  };
+  const $img = (input, modifiers = {}, options = {}) => {
+    return getImage2(input, {
+      ...options,
+      modifiers: defu(modifiers, options.modifiers || {})
+    }).url;
+  };
+  for (const presetName in globalOptions.presets) {
+    $img[presetName] = (source, modifiers, options) => $img(source, modifiers, { ...globalOptions.presets[presetName], ...options });
+  }
+  $img.options = globalOptions;
+  $img.getImage = getImage2;
+  $img.getMeta = (input, options) => getMeta(ctx, input, options);
+  $img.getSizes = (input, options) => getSizes(ctx, input, options);
+  ctx.$img = $img;
+  return $img;
+}
+async function getMeta(ctx, input, options) {
+  const image = resolveImage(ctx, input, { ...options });
+  if (typeof image.getMeta === "function") {
+    return await image.getMeta();
+  } else {
+    return await imageMeta(ctx, image.url);
+  }
+}
+function resolveImage(ctx, input, options) {
+  var _a, _b;
+  if (input && typeof input !== "string") {
+    throw new TypeError(`input must be a string (received ${typeof input}: ${JSON.stringify(input)})`);
+  }
+  if (!input || input.startsWith("data:")) {
+    return {
+      url: input
+    };
+  }
+  const { provider, defaults } = getProvider(ctx, options.provider || ctx.options.provider);
+  const preset = getPreset(ctx, options.preset);
+  input = hasProtocol(input) ? input : withLeadingSlash(input);
+  if (!provider.supportsAlias) {
+    for (const base in ctx.options.alias) {
+      if (input.startsWith(base)) {
+        const alias = ctx.options.alias[base];
+        if (alias) {
+          input = joinURL(alias, input.slice(base.length));
+        }
+      }
+    }
+  }
+  if (provider.validateDomains && hasProtocol(input)) {
+    const inputHost = parseURL(input).host;
+    if (!ctx.options.domains.find((d) => d === inputHost)) {
+      return {
+        url: input
+      };
+    }
+  }
+  const _options = defu(options, preset, defaults);
+  _options.modifiers = { ..._options.modifiers };
+  const expectedFormat = _options.modifiers.format;
+  if ((_a = _options.modifiers) == null ? void 0 : _a.width) {
+    _options.modifiers.width = parseSize(_options.modifiers.width);
+  }
+  if ((_b = _options.modifiers) == null ? void 0 : _b.height) {
+    _options.modifiers.height = parseSize(_options.modifiers.height);
+  }
+  const image = provider.getImage(input, _options, ctx);
+  image.format = image.format || expectedFormat || "";
+  return image;
+}
+function getProvider(ctx, name2) {
+  const provider = ctx.options.providers[name2];
+  if (!provider) {
+    throw new Error("Unknown provider: " + name2);
+  }
+  return provider;
+}
+function getPreset(ctx, name2) {
+  if (!name2) {
+    return {};
+  }
+  if (!ctx.options.presets[name2]) {
+    throw new Error("Unknown preset: " + name2);
+  }
+  return ctx.options.presets[name2];
+}
+function getSizes(ctx, input, opts) {
+  var _a, _b, _c, _d, _e;
+  const width = parseSize((_a = opts.modifiers) == null ? void 0 : _a.width);
+  const height = parseSize((_b = opts.modifiers) == null ? void 0 : _b.height);
+  const sizes = parseSizes(opts.sizes);
+  const densities = ((_c = opts.densities) == null ? void 0 : _c.trim()) ? parseDensities(opts.densities.trim()) : ctx.options.densities;
+  checkDensities(densities);
+  const hwRatio = width && height ? height / width : 0;
+  const sizeVariants = [];
+  const srcsetVariants = [];
+  if (Object.keys(sizes).length >= 1) {
+    for (const key in sizes) {
+      const variant = getSizesVariant(key, String(sizes[key]), height, hwRatio, ctx);
+      if (variant === void 0) {
+        continue;
+      }
+      sizeVariants.push({
+        size: variant.size,
+        screenMaxWidth: variant.screenMaxWidth,
+        media: `(max-width: ${variant.screenMaxWidth}px)`
+      });
+      for (const density of densities) {
+        srcsetVariants.push({
+          width: variant._cWidth * density,
+          src: getVariantSrc(ctx, input, opts, variant, density)
+        });
+      }
+    }
+    finaliseSizeVariants(sizeVariants);
+  } else {
+    for (const density of densities) {
+      const key = Object.keys(sizes)[0];
+      let variant = key ? getSizesVariant(key, String(sizes[key]), height, hwRatio, ctx) : void 0;
+      if (variant === void 0) {
+        variant = {
+          size: "",
+          screenMaxWidth: 0,
+          _cWidth: (_d = opts.modifiers) == null ? void 0 : _d.width,
+          _cHeight: (_e = opts.modifiers) == null ? void 0 : _e.height
+        };
+      }
+      srcsetVariants.push({
+        width: density,
+        src: getVariantSrc(ctx, input, opts, variant, density)
+      });
+    }
+  }
+  finaliseSrcsetVariants(srcsetVariants);
+  const defaultVariant = srcsetVariants[srcsetVariants.length - 1];
+  const sizesVal = sizeVariants.length ? sizeVariants.map((v2) => `${v2.media ? v2.media + " " : ""}${v2.size}`).join(", ") : void 0;
+  const suffix = sizesVal ? "w" : "x";
+  const srcsetVal = srcsetVariants.map((v2) => `${v2.src} ${v2.width}${suffix}`).join(", ");
+  return {
+    sizes: sizesVal,
+    srcset: srcsetVal,
+    src: defaultVariant == null ? void 0 : defaultVariant.src
+  };
+}
+function getSizesVariant(key, size, height, hwRatio, ctx) {
+  const screenMaxWidth = ctx.options.screens && ctx.options.screens[key] || Number.parseInt(key);
+  const isFluid = size.endsWith("vw");
+  if (!isFluid && /^\d+$/.test(size)) {
+    size = size + "px";
+  }
+  if (!isFluid && !size.endsWith("px")) {
+    return void 0;
+  }
+  let _cWidth = Number.parseInt(size);
+  if (!screenMaxWidth || !_cWidth) {
+    return void 0;
+  }
+  if (isFluid) {
+    _cWidth = Math.round(_cWidth / 100 * screenMaxWidth);
+  }
+  const _cHeight = hwRatio ? Math.round(_cWidth * hwRatio) : height;
+  return {
+    size,
+    screenMaxWidth,
+    _cWidth,
+    _cHeight
+  };
+}
+function getVariantSrc(ctx, input, opts, variant, density) {
+  return ctx.$img(
+    input,
+    {
+      ...opts.modifiers,
+      width: variant._cWidth ? variant._cWidth * density : void 0,
+      height: variant._cHeight ? variant._cHeight * density : void 0
+    },
+    opts
+  );
+}
+function finaliseSizeVariants(sizeVariants) {
+  var _a;
+  sizeVariants.sort((v1, v2) => v1.screenMaxWidth - v2.screenMaxWidth);
+  let previousMedia = null;
+  for (let i = sizeVariants.length - 1; i >= 0; i--) {
+    const sizeVariant = sizeVariants[i];
+    if (sizeVariant.media === previousMedia) {
+      sizeVariants.splice(i, 1);
+    }
+    previousMedia = sizeVariant.media;
+  }
+  for (let i = 0; i < sizeVariants.length; i++) {
+    sizeVariants[i].media = ((_a = sizeVariants[i + 1]) == null ? void 0 : _a.media) || "";
+  }
+}
+function finaliseSrcsetVariants(srcsetVariants) {
+  srcsetVariants.sort((v1, v2) => v1.width - v2.width);
+  let previousWidth = null;
+  for (let i = srcsetVariants.length - 1; i >= 0; i--) {
+    const sizeVariant = srcsetVariants[i];
+    if (sizeVariant.width === previousWidth) {
+      srcsetVariants.splice(i, 1);
+    }
+    previousWidth = sizeVariant.width;
+  }
+}
+const operationsGenerator = createOperationsGenerator({
+  keyMap: {
+    format: "f",
+    fit: "fit",
+    width: "w",
+    height: "h",
+    resize: "s",
+    quality: "q",
+    background: "b"
+  },
+  joinWith: "&",
+  formatter: (key, val) => encodeParam(key) + "_" + encodeParam(val)
+});
+const getImage = (src, { modifiers = {}, baseURL: baseURL2 } = {}, ctx) => {
+  if (modifiers.width && modifiers.height) {
+    modifiers.resize = `${modifiers.width}x${modifiers.height}`;
+    delete modifiers.width;
+    delete modifiers.height;
+  }
+  const params = operationsGenerator(modifiers) || "_";
+  if (!baseURL2) {
+    baseURL2 = joinURL(ctx.options.nuxt.baseURL, "/_ipx");
+  }
+  return {
+    url: joinURL(baseURL2, params, encodePath(src))
+  };
+};
+const validateDomains = true;
+const supportsAlias = true;
+const ipxRuntime$cexNsZIEjM = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  getImage,
+  supportsAlias,
+  validateDomains
+}, Symbol.toStringTag, { value: "Module" }));
+const imageOptions = {
+  "screens": {
+    "xs": 320,
+    "sm": 640,
+    "md": 768,
+    "lg": 1024,
+    "xl": 1280,
+    "xxl": 1536,
+    "2xl": 1536
+  },
+  "presets": {},
+  "provider": "ipx",
+  "domains": [
+    "example.com",
+    "example.org"
+  ],
+  "alias": {},
+  "densities": [
+    1,
+    2
+  ],
+  "format": [
+    "webp"
+  ]
+};
+imageOptions.providers = {
+  ["ipx"]: { provider: ipxRuntime$cexNsZIEjM, defaults: {} }
+};
+const useImage = () => {
+  const config = /* @__PURE__ */ useRuntimeConfig();
+  const nuxtApp = useNuxtApp();
+  return nuxtApp.$img || nuxtApp._img || (nuxtApp._img = createImage({
+    ...imageOptions,
+    nuxt: {
+      baseURL: config.app.baseURL
+    },
+    runtimeConfig: config
+  }));
+};
+const baseImageProps = {
+  // input source
+  src: { type: String, required: false },
+  // modifiers
+  format: { type: String, required: false },
+  quality: { type: [Number, String], required: false },
+  background: { type: String, required: false },
+  fit: { type: String, required: false },
+  modifiers: { type: Object, required: false },
+  // options
+  preset: { type: String, required: false },
+  provider: { type: String, required: false },
+  sizes: { type: [Object, String], required: false },
+  densities: { type: String, required: false },
+  preload: {
+    type: [Boolean, Object],
+    required: false
+  },
+  // <img> attributes
+  width: { type: [String, Number], required: false },
+  height: { type: [String, Number], required: false },
+  alt: { type: String, required: false },
+  referrerpolicy: { type: String, required: false },
+  usemap: { type: String, required: false },
+  longdesc: { type: String, required: false },
+  ismap: { type: Boolean, required: false },
+  loading: {
+    type: String,
+    required: false,
+    validator: (val) => ["lazy", "eager"].includes(val)
+  },
+  crossorigin: {
+    type: [Boolean, String],
+    required: false,
+    validator: (val) => ["anonymous", "use-credentials", "", true, false].includes(val)
+  },
+  decoding: {
+    type: String,
+    required: false,
+    validator: (val) => ["async", "auto", "sync"].includes(val)
+  },
+  // csp
+  nonce: { type: [String], required: false }
+};
+const useBaseImage = (props) => {
+  const options = computed(() => {
+    return {
+      provider: props.provider,
+      preset: props.preset
+    };
+  });
+  const attrs = computed(() => {
+    return {
+      width: parseSize(props.width),
+      height: parseSize(props.height),
+      alt: props.alt,
+      referrerpolicy: props.referrerpolicy,
+      usemap: props.usemap,
+      longdesc: props.longdesc,
+      ismap: props.ismap,
+      crossorigin: props.crossorigin === true ? "anonymous" : props.crossorigin || void 0,
+      loading: props.loading,
+      decoding: props.decoding,
+      nonce: props.nonce
+    };
+  });
+  const $img = useImage();
+  const modifiers = computed(() => {
+    return {
+      ...props.modifiers,
+      width: parseSize(props.width),
+      height: parseSize(props.height),
+      format: props.format,
+      quality: props.quality || $img.options.quality,
+      background: props.background,
+      fit: props.fit
+    };
+  });
+  return {
+    options,
+    attrs,
+    modifiers
+  };
+};
+const imgProps = {
+  ...baseImageProps,
+  placeholder: { type: [Boolean, String, Number, Array], required: false },
+  placeholderClass: { type: String, required: false }
+};
+const _sfc_main$a = /* @__PURE__ */ defineComponent({
+  __name: "NuxtImg",
+  __ssrInlineRender: true,
+  props: imgProps,
+  emits: ["load", "error"],
+  setup(__props, { emit: __emit }) {
+    const props = __props;
+    const attrs = useAttrs();
+    const isServer = true;
+    const $img = useImage();
+    const _base = useBaseImage(props);
+    const placeholderLoaded = ref(false);
+    const imgEl = ref();
+    const sizes = computed(() => $img.getSizes(props.src, {
+      ..._base.options.value,
+      sizes: props.sizes,
+      densities: props.densities,
+      modifiers: {
+        ..._base.modifiers.value,
+        width: parseSize(props.width),
+        height: parseSize(props.height)
+      }
+    }));
+    const imgAttrs = computed(() => {
+      const attrs2 = { ..._base.attrs.value, "data-nuxt-img": "" };
+      if (!props.placeholder || placeholderLoaded.value) {
+        attrs2.sizes = sizes.value.sizes;
+        attrs2.srcset = sizes.value.srcset;
+      }
+      return attrs2;
+    });
+    const placeholder = computed(() => {
+      let placeholder2 = props.placeholder;
+      if (placeholder2 === "") {
+        placeholder2 = true;
+      }
+      if (!placeholder2 || placeholderLoaded.value) {
+        return false;
+      }
+      if (typeof placeholder2 === "string") {
+        return placeholder2;
+      }
+      const size = Array.isArray(placeholder2) ? placeholder2 : typeof placeholder2 === "number" ? [placeholder2, placeholder2] : [10, 10];
+      return $img(props.src, {
+        ..._base.modifiers.value,
+        width: size[0],
+        height: size[1],
+        quality: size[2] || 50,
+        blur: size[3] || 3
+      }, _base.options.value);
+    });
+    const mainSrc = computed(
+      () => props.sizes ? sizes.value.src : $img(props.src, _base.modifiers.value, _base.options.value)
+    );
+    const src = computed(() => placeholder.value ? placeholder.value : mainSrc.value);
+    if (props.preload) {
+      const isResponsive = Object.values(sizes.value).every((v2) => v2);
+      useHead({
+        link: [{
+          rel: "preload",
+          as: "image",
+          nonce: props.nonce,
+          ...!isResponsive ? { href: src.value } : {
+            href: sizes.value.src,
+            imagesizes: sizes.value.sizes,
+            imagesrcset: sizes.value.srcset
+          },
+          ...typeof props.preload !== "boolean" && props.preload.fetchPriority ? { fetchpriority: props.preload.fetchPriority } : {}
+        }]
+      });
+    }
+    const nuxtApp = useNuxtApp();
+    nuxtApp.isHydrating;
+    return (_ctx, _push, _parent, _attrs) => {
+      _push(`<img${ssrRenderAttrs(mergeProps({
+        ref_key: "imgEl",
+        ref: imgEl,
+        class: props.placeholder && !placeholderLoaded.value ? props.placeholderClass : void 0
+      }, {
+        ...unref(isServer) ? { onerror: "this.setAttribute('data-error', 1)" } : {},
+        ...imgAttrs.value,
+        ...unref(attrs)
+      }, { src: src.value }, _attrs))}>`);
+    };
+  }
+});
+const _sfc_setup$a = _sfc_main$a.setup;
+_sfc_main$a.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("node_modules/@nuxt/image/dist/runtime/components/NuxtImg.vue");
+  return _sfc_setup$a ? _sfc_setup$a(props, ctx) : void 0;
+};
+const Z$4 = ["width", "height", "fill", "transform"], f$6 = { key: 0 }, w$6 = /* @__PURE__ */ createElementVNode("path", { d: "M232.49,215.51,185,168a92.12,92.12,0,1,0-17,17l47.53,47.54a12,12,0,0,0,17-17ZM44,112a68,68,0,1,1,68,68A68.07,68.07,0,0,1,44,112Z" }, null, -1), A$4 = [
+  w$6
+], k$6 = { key: 1 }, x$6 = /* @__PURE__ */ createElementVNode("path", {
+  d: "M192,112a80,80,0,1,1-80-80A80,80,0,0,1,192,112Z",
+  opacity: "0.2"
+}, null, -1), S$6 = /* @__PURE__ */ createElementVNode("path", { d: "M229.66,218.34,179.6,168.28a88.21,88.21,0,1,0-11.32,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }, null, -1), z$6 = [
+  x$6,
+  S$6
+], C$5 = { key: 2 }, B$6 = /* @__PURE__ */ createElementVNode("path", { d: "M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z" }, null, -1), N$6 = [
+  B$6
+], b$6 = { key: 3 }, E$6 = /* @__PURE__ */ createElementVNode("path", { d: "M228.24,219.76l-51.38-51.38a86.15,86.15,0,1,0-8.48,8.48l51.38,51.38a6,6,0,0,0,8.48-8.48ZM38,112a74,74,0,1,1,74,74A74.09,74.09,0,0,1,38,112Z" }, null, -1), P$6 = [
+  E$6
+], V$5 = { key: 4 }, W$6 = /* @__PURE__ */ createElementVNode("path", { d: "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }, null, -1), $$6 = [
+  W$6
+], j$6 = { key: 5 }, G$4 = /* @__PURE__ */ createElementVNode("path", { d: "M226.83,221.17l-52.7-52.7a84.1,84.1,0,1,0-5.66,5.66l52.7,52.7a4,4,0,0,0,5.66-5.66ZM36,112a76,76,0,1,1,76,76A76.08,76.08,0,0,1,36,112Z" }, null, -1), q$6 = [
+  G$4
+], D$2 = {
+  name: "PhMagnifyingGlass"
+}, I$1 = /* @__PURE__ */ defineComponent({
+  ...D$2,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(d) {
+    const l = d, c = inject("weight", "regular"), _ = inject("size", "1em"), h2 = inject("color", "currentColor"), u = inject("mirrored", false), s = computed(() => l.weight ?? c), i = computed(() => l.size ?? _), p = computed(() => l.color ?? h2), g = computed(() => l.mirrored !== void 0 ? l.mirrored ? "scale(-1, 1)" : void 0 : u ? "scale(-1, 1)" : void 0);
+    return (r, F) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: i.value,
+      height: i.value,
+      fill: p.value,
+      transform: g.value
+    }, r.$attrs), [
+      renderSlot(r.$slots, "default"),
+      s.value === "bold" ? (openBlock(), createElementBlock("g", f$6, A$4)) : s.value === "duotone" ? (openBlock(), createElementBlock("g", k$6, z$6)) : s.value === "fill" ? (openBlock(), createElementBlock("g", C$5, N$6)) : s.value === "light" ? (openBlock(), createElementBlock("g", b$6, P$6)) : s.value === "regular" ? (openBlock(), createElementBlock("g", V$5, $$6)) : s.value === "thin" ? (openBlock(), createElementBlock("g", j$6, q$6)) : createCommentVNode("", true)
+    ], 16, Z$4));
+  }
+});
+function useSorting() {
+  const route = useRoute();
+  const router = useRouter();
+  const { updateProductList } = useProducts();
+  const orderQuery = useState("order", () => "");
+  orderQuery.value = route.query.orderby;
+  function getOrderQuery() {
+    return { orderBy: route.query.orderby, order: route.query.order };
+  }
+  function setOrderQuery(orderby, order) {
+    router.push({ query: { ...route.query, orderby: orderby ?? void 0, order: order ?? void 0 } });
+    setTimeout(() => {
+      updateProductList();
+    }, 100);
+  }
+  const isSortingActive = computed(() => !!orderQuery.value);
+  function sortProducts(products) {
+    if (!isSortingActive) return products;
+    const orderQuery2 = getOrderQuery();
+    if (!orderQuery2.orderBy && !orderQuery2.order) return products;
+    const orderby = orderQuery2.orderBy || "date";
+    const order = orderQuery2.order || "DESC";
+    return products.sort((a, b2) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b2.date ? new Date(b2.date).getTime() : 0;
+      const aPrice = a.rawPrice ? parseFloat([...a.rawPrice.split(",")].reduce((a2, b22) => String(Math.max(Number(a2), Number(b22))))) : 0;
+      const bPrice = b2.rawPrice ? parseFloat([...b2.rawPrice.split(",")].reduce((a2, b22) => String(Math.max(Number(a2), Number(b22))))) : 0;
+      const aSalePrice = a.rawSalePrice ? parseFloat([...a.rawSalePrice.split(",")].reduce((a2, b22) => String(Math.max(Number(a2), Number(b22))))) : 0;
+      const aRegularPrice = a.rawRegularPrice ? parseFloat([...a.rawRegularPrice.split(",")].reduce((a2, b22) => String(Math.max(Number(a2), Number(b22))))) : 0;
+      const bSalePrice = b2.rawSalePrice ? parseFloat([...b2.rawSalePrice.split(",")].reduce((a2, b22) => String(Math.max(Number(a2), Number(b22))))) : 0;
+      const bRegularPrice = b2.rawRegularPrice ? parseFloat([...b2.rawRegularPrice.split(",")].reduce((a2, b22) => String(Math.max(Number(a2), Number(b22))))) : 0;
+      const aDiscount = a.onSale ? Math.round((aSalePrice - aRegularPrice) / aRegularPrice * 100) : 0;
+      const bDiscount = b2.onSale ? Math.round((bSalePrice - bRegularPrice) / bRegularPrice * 100) : 0;
+      const aName = a.name || "";
+      const bName = b2.name || "";
+      const aRating = a.averageRating || 0;
+      const bRating = b2.averageRating || 0;
+      switch (orderby) {
+        case "price":
+          return order !== "DESC" ? aPrice - bPrice : bPrice - aPrice;
+        case "rating":
+          return order !== "DESC" ? bRating - aRating : aRating - bRating;
+        case "discount":
+          return order !== "DESC" ? bDiscount - aDiscount : aDiscount - bDiscount;
+        case "alphabetically":
+          return order !== "DESC" ? aName.localeCompare(bName) : bName.localeCompare(aName);
+        default:
+          return order !== "DESC" ? aDate - bDate : bDate - aDate;
+      }
+    });
+  }
+  return { getOrderQuery, setOrderQuery, isSortingActive, orderQuery, sortProducts };
+}
+function useFiltering() {
+  const route = useRoute();
+  const router = useRouter();
+  const runtimeConfig = /* @__PURE__ */ useRuntimeConfig();
+  const { updateProductList } = useProducts();
+  const filterQuery = useState("filter", () => "");
+  filterQuery.value = route.query.filter;
+  function getFilter(filterName) {
+    var _a, _b, _c;
+    return ((_c = (_b = (_a = filterQuery.value) == null ? void 0 : _a.split(`${filterName}[`)[1]) == null ? void 0 : _b.split("]")[0]) == null ? void 0 : _c.split(",")) || [];
+  }
+  function setFilter(filterName, filterValue) {
+    var _a;
+    let newFilterQuery = filterQuery.value || "";
+    if (!((_a = filterQuery.value) == null ? void 0 : _a.includes(filterName))) {
+      newFilterQuery = filterQuery.value ? `${filterQuery.value},${filterName}[${filterValue}]` : `${filterName}[${filterValue}]`;
+    } else {
+      newFilterQuery = !filterValue.length ? filterQuery.value.replace(`${filterName}[${getFilter(filterName)}]`, "") : filterQuery.value.replace(`${filterName}[${getFilter(filterName)}]`, `${filterName}[${filterValue}]`);
+    }
+    newFilterQuery = newFilterQuery.replace(/^,/, "").replace(/,$/, "");
+    newFilterQuery = newFilterQuery.replace(/,{2,}/g, ",");
+    filterQuery.value = newFilterQuery;
+    router.push({ query: { ...route.query, filter: newFilterQuery } });
+    const path = route.path.includes("/page/") ? route.path.split("/page/")[0] : route.path;
+    if (!newFilterQuery) {
+      router.push({
+        path,
+        query: { ...route.query, filter: void 0 }
+      });
+    } else {
+      router.push({
+        path,
+        query: { ...route.query, filter: newFilterQuery }
+      });
+    }
+    setTimeout(() => {
+      updateProductList();
+    }, 50);
+  }
+  function resetFilter() {
+    const { scrollToTop } = useHelpers();
+    filterQuery.value = "";
+    router.push({ query: { ...route.query, filter: void 0 } });
+    setTimeout(() => {
+      updateProductList();
+      scrollToTop();
+    }, 50);
+  }
+  const isFiltersActive = computed(() => !!filterQuery.value);
+  function filterProducts(products) {
+    return products.filter((product) => {
+      var _a, _b, _c, _d;
+      const category = getFilter("category") || [];
+      const categoryCondition = category.length ? (_b = (_a = product.productCategories) == null ? void 0 : _a.nodes) == null ? void 0 : _b.find((node) => category.includes(node.slug)) : true;
+      const priceRange = getFilter("price") || [];
+      const productPrice = product.rawPrice ? parseFloat([...product.rawPrice.split(",")].reduce((a, b2) => String(Math.max(Number(a), Number(b2))))) : 0;
+      const priceCondition = priceRange.length ? productPrice >= parseFloat(priceRange[0]) && productPrice <= parseFloat(priceRange[1]) : true;
+      const starRating = getFilter("rating") || [];
+      const ratingCondition = starRating.length ? ((product == null ? void 0 : product.averageRating) || 0) >= parseFloat(starRating[0]) : true;
+      const globalProductAttributes = ((_d = (_c = runtimeConfig == null ? void 0 : runtimeConfig.public) == null ? void 0 : _c.GLOBAL_PRODUCT_ATTRIBUTES) == null ? void 0 : _d.map((attribute) => attribute.slug)) || [];
+      const attributeCondition = globalProductAttributes.map((attribute) => {
+        var _a2, _b2;
+        const attributeValues = getFilter(attribute) || [];
+        if (!attributeValues.length) return true;
+        return (_b2 = (_a2 = product.terms) == null ? void 0 : _a2.nodes) == null ? void 0 : _b2.find((node) => node.taxonomyName === attribute && attributeValues.includes(node.slug));
+      }).every((condition) => condition);
+      const onSale = getFilter("sale");
+      const saleItemsOnlyCondition = onSale.length ? product.onSale : true;
+      return ratingCondition && priceCondition && attributeCondition && categoryCondition && saleItemsOnlyCondition;
+    });
+  }
+  return { getFilter, setFilter, resetFilter, isFiltersActive, filterProducts };
+}
+let allProducts = [];
+function useProducts() {
+  const products = useState("products");
+  function setProducts(newProducts) {
+    if (!Array.isArray(newProducts)) throw new Error("Products must be an array.");
+    products.value = newProducts ?? [];
+    allProducts = JSON.parse(JSON.stringify(newProducts));
+  }
+  const updateProductList = async () => {
+    const { scrollToTop } = useHelpers();
+    const { isSortingActive, sortProducts } = useSorting();
+    const { isFiltersActive, filterProducts } = useFiltering();
+    const { isSearchActive, searchProducts } = useSearching();
+    scrollToTop();
+    if (!isFiltersActive.value && !isSearchActive.value && !isSortingActive.value) {
+      products.value = allProducts;
+      return;
+    }
+    try {
+      let newProducts = [...allProducts];
+      if (isFiltersActive.value) newProducts = filterProducts(newProducts);
+      if (isSearchActive.value) newProducts = searchProducts(newProducts);
+      if (isSortingActive.value) newProducts = sortProducts(newProducts);
+      products.value = newProducts;
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  return { products, allProducts, setProducts, updateProductList };
+}
+function useSearching() {
+  const route = useRoute();
+  const router = useRouter();
+  const isShowingSearch = useState("isShowingSearch", () => false);
+  const searchQuery = useState("searchQuery", () => "");
+  const isSearchActive = computed(() => !!searchQuery.value);
+  searchQuery.value = route.query.search;
+  function getSearchQuery() {
+    return route.query.search;
+  }
+  function setSearchQuery(search) {
+    const { updateProductList } = useProducts();
+    searchQuery.value = search;
+    router.push({ query: { ...route.query, search: search || void 0 } });
+    setTimeout(() => {
+      updateProductList();
+    }, 50);
+  }
+  function clearSearchQuery() {
+    setSearchQuery("");
+  }
+  const toggleSearch = () => {
+    isShowingSearch.value = !isShowingSearch.value;
+  };
+  function searchProducts(products) {
+    const name2 = route.name ?? "products";
+    const search = getSearchQuery();
+    if (route.name === "product-category-slug") {
+      const categorySlug = route.params.categorySlug;
+      router.push({ name: name2, params: { categorySlug }, query: { ...route.query, search } });
+    } else {
+      router.push({ name: "products", query: { ...route.query, search } });
+    }
+    return search ? products.filter((product) => {
+      var _a;
+      const name22 = (_a = product.name) == null ? void 0 : _a.toLowerCase();
+      const description = product.description ? product.description.toLowerCase() : null;
+      const shortDescription = product.shortDescription ? product.shortDescription.toLowerCase() : null;
+      const query = search.toLowerCase();
+      return (name22 == null ? void 0 : name22.includes(query)) ?? (description == null ? void 0 : description.includes(query)) ?? (shortDescription == null ? void 0 : shortDescription.includes(query));
+    }) : products;
+  }
+  return { getSearchQuery, setSearchQuery, clearSearchQuery, searchProducts, isSearchActive, isShowingSearch, toggleSearch };
+}
+const _sfc_main$9 = {
+  __name: "ProductSearch",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const { getSearchQuery, setSearchQuery, clearSearchQuery } = useSearching();
+    const searchQuery = ref(getSearchQuery());
+    const reset = () => {
+      clearSearchQuery();
+      searchQuery.value = "";
+    };
+    watch(getSearchQuery, (value) => {
+      if (!value) reset();
+    });
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_Icon = __nuxt_component_0;
+      const _component_PhosphorIconMagnifyingGlass = I$1;
+      _push(`<form${ssrRenderAttrs(mergeProps({ class: "relative items-center rounded-md shadow-sm" }, _attrs))}><input${ssrRenderAttr("value", searchQuery.value)} type="text"${ssrRenderAttr("placeholder", _ctx.$t("messages.shop.searchProducts"))} class="z-0 inline-flex items-center w-full p-2 pr-12 text-sm text-stone-500 border border-stone-300 rounded-md shadow-inner outline-none bg-stone-50 shadow-stone-200">`);
+      if (searchQuery.value) {
+        _push(`<span class="absolute z-10 top-1/2 -translate-y-1/2 pt-1 right-12 text-xs rounded cursor-pointer text-gray-600 hover:text-gray-900 transition">`);
+        _push(ssrRenderComponent(_component_Icon, {
+          name: "ion:close-outline",
+          size: "18"
+        }, null, _parent));
+        _push(`</span>`);
+      } else {
+        _push(`<!---->`);
+      }
+      _push(`<button class="p-2 absolute z-10 right-1 top-0 text-white rounded-[7px] bg-primary w-[91px] flex items-center justify-center hover:bg-red-800 transition">`);
+      _push(ssrRenderComponent(_component_PhosphorIconMagnifyingGlass, {
+        size: 24,
+        weight: "bold"
+      }, null, _parent));
+      _push(`</button></form>`);
+    };
+  }
+};
+const _sfc_setup$9 = _sfc_main$9.setup;
+_sfc_main$9.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/shopElements/ProductSearch.vue");
+  return _sfc_setup$9 ? _sfc_setup$9(props, ctx) : void 0;
+};
+const _sfc_main$8 = /* @__PURE__ */ defineComponent({
+  __name: "LoadingIcon",
+  __ssrInlineRender: true,
+  props: {
+    size: { default: "20", type: String || Number },
+    color: { default: "#4B5563", type: String },
+    speed: { default: "250ms", type: String },
+    stroke: { default: "2.5", type: String || Number }
+  },
+  setup(__props) {
+    const gradientId = useId("$p2moD7hrxi");
+    return (_ctx, _push, _parent, _attrs) => {
+      _push(`<svg${ssrRenderAttrs(mergeProps({
+        width: __props.size,
+        height: __props.size,
+        viewBox: "0 0 38 38",
+        xmlns: "http://www.w3.org/2000/svg"
+      }, _attrs))}><defs><linearGradient${ssrRenderAttr("id", unref(gradientId))} x1="8.042%" y1="0%" x2="65.682%" y2="23.865%"><stop${ssrRenderAttr("stop-color", __props.color)} stop-opacity="0" offset="0%"></stop><stop${ssrRenderAttr("stop-color", __props.color)} stop-opacity=".631" offset="63.146%"></stop><stop${ssrRenderAttr("stop-color", __props.color)} offset="100%"></stop></linearGradient></defs><g fill="none" fill-rule="evenodd"><g transform="translate(1 1)"><path id="Oval-2" d="M36 18c0-9.94-8.06-18-18-18"${ssrRenderAttr("stroke", `url(#${unref(gradientId)})`)}${ssrRenderAttr("stroke-width", __props.stroke)}><animateTransform attributeName="transform" type="rotate" from="0 18 18" to="360 18 18"${ssrRenderAttr("dur", __props.speed)} repeatCount="indefinite"></animateTransform></path><circle fill="#fff" cx="36" cy="18" r="1"><animateTransform attributeName="transform" type="rotate" from="0 18 18" to="360 18 18"${ssrRenderAttr("dur", __props.speed)} repeatCount="indefinite"></animateTransform></circle></g></g></svg>`);
+    };
+  }
+});
+const _sfc_setup$8 = _sfc_main$8.setup;
+_sfc_main$8.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/generalElements/LoadingIcon.vue");
+  return _sfc_setup$8 ? _sfc_setup$8(props, ctx) : void 0;
+};
+const _sfc_main$7 = /* @__PURE__ */ defineComponent({
+  __name: "SignInLink",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const { viewer, avatar, logoutUser, isPending, wishlistLink } = useAuth();
+    const linkTitle = computed(() => {
+      var _a;
+      return ((_a = viewer.value) == null ? void 0 : _a.username) || "Sign In";
+    });
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_NuxtLink = __nuxt_component_10;
+      const _component_Icon = __nuxt_component_0;
+      const _component_LoadingIcon = _sfc_main$8;
+      _push(ssrRenderComponent(_component_NuxtLink, mergeProps({
+        to: "/my-account",
+        title: unref(linkTitle),
+        class: "inline-flex aspect-square items-center"
+      }, _attrs), {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(``);
+            if (unref(avatar)) {
+              _push2(`<span class="relative avatar" data-v-275cfa1f${_scopeId}><img${ssrRenderAttr("src", unref(avatar))} class="rounded-full transform scale-125 shadow-md overflow-hidden border border-white my-auto" width="22" height="22"${ssrRenderAttr("alt", unref(linkTitle))} data-v-275cfa1f${_scopeId}><div class="account-dropdown" data-v-275cfa1f${_scopeId}>`);
+              _push2(ssrRenderComponent(_component_NuxtLink, {
+                to: unref(wishlistLink),
+                class: "hover:bg-stone-100"
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(ssrRenderComponent(_component_Icon, {
+                      name: "ion:heart-outline",
+                      size: "16"
+                    }, null, _parent3, _scopeId2));
+                    _push3(`<span data-v-275cfa1f${_scopeId2}>Kívánságlista</span>`);
+                  } else {
+                    return [
+                      createVNode(_component_Icon, {
+                        name: "ion:heart-outline",
+                        size: "16"
+                      }),
+                      createVNode("span", null, "Kívánságlista")
+                    ];
+                  }
+                }),
+                _: 1
+              }, _parent2, _scopeId));
+              _push2(ssrRenderComponent(_component_NuxtLink, {
+                to: "/my-account",
+                class: "hover:bg-stone-100"
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(ssrRenderComponent(_component_Icon, {
+                      name: "ion:person-outline",
+                      size: "16"
+                    }, null, _parent3, _scopeId2));
+                    _push3(`<span data-v-275cfa1f${_scopeId2}>Profil</span>`);
+                  } else {
+                    return [
+                      createVNode(_component_Icon, {
+                        name: "ion:person-outline",
+                        size: "16"
+                      }),
+                      createVNode("span", null, "Profil")
+                    ];
+                  }
+                }),
+                _: 1
+              }, _parent2, _scopeId));
+              _push2(`<button class="text-red-600 hover:bg-red-50" data-v-275cfa1f${_scopeId}>`);
+              if (unref(isPending)) {
+                _push2(ssrRenderComponent(_component_LoadingIcon, { size: "16" }, null, _parent2, _scopeId));
+              } else {
+                _push2(ssrRenderComponent(_component_Icon, {
+                  name: "ion:log-out-outline",
+                  size: "16"
+                }, null, _parent2, _scopeId));
+              }
+              _push2(`<span data-v-275cfa1f${_scopeId}>Kijelentkezés</span></button></div></span>`);
+            } else {
+              _push2(ssrRenderComponent(_component_Icon, {
+                name: "ph:user",
+                size: "32",
+                style: { "color": "black" }
+              }, null, _parent2, _scopeId));
+            }
+          } else {
+            return [
+              createVNode(Transition, {
+                name: "pop-in",
+                mode: "out-in"
+              }, {
+                default: withCtx(() => [
+                  unref(avatar) ? (openBlock(), createBlock("span", {
+                    key: 0,
+                    class: "relative avatar"
+                  }, [
+                    createVNode("img", {
+                      src: unref(avatar),
+                      class: "rounded-full transform scale-125 shadow-md overflow-hidden border border-white my-auto",
+                      width: "22",
+                      height: "22",
+                      alt: unref(linkTitle)
+                    }, null, 8, ["src", "alt"]),
+                    createVNode("div", { class: "account-dropdown" }, [
+                      createVNode(_component_NuxtLink, {
+                        to: unref(wishlistLink),
+                        class: "hover:bg-stone-100"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode(_component_Icon, {
+                            name: "ion:heart-outline",
+                            size: "16"
+                          }),
+                          createVNode("span", null, "Kívánságlista")
+                        ]),
+                        _: 1
+                      }, 8, ["to"]),
+                      createVNode(_component_NuxtLink, {
+                        to: "/my-account",
+                        class: "hover:bg-stone-100"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode(_component_Icon, {
+                            name: "ion:person-outline",
+                            size: "16"
+                          }),
+                          createVNode("span", null, "Profil")
+                        ]),
+                        _: 1
+                      }),
+                      createVNode("button", {
+                        class: "text-red-600 hover:bg-red-50",
+                        onClick: withModifiers(unref(logoutUser), ["prevent"])
+                      }, [
+                        unref(isPending) ? (openBlock(), createBlock(_component_LoadingIcon, {
+                          key: 0,
+                          size: "16"
+                        })) : (openBlock(), createBlock(_component_Icon, {
+                          key: 1,
+                          name: "ion:log-out-outline",
+                          size: "16"
+                        })),
+                        createVNode("span", null, "Kijelentkezés")
+                      ], 8, ["onClick"])
+                    ])
+                  ])) : (openBlock(), createBlock(_component_Icon, {
+                    key: 1,
+                    name: "ph:user",
+                    size: "32",
+                    style: { "color": "black" }
+                  }))
+                ]),
+                _: 1
+              })
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+    };
+  }
+});
+const _export_sfc = (sfc, props) => {
+  const target = sfc.__vccOpts || sfc;
+  for (const [key, val] of props) {
+    target[key] = val;
+  }
+  return target;
+};
+const _sfc_setup$7 = _sfc_main$7.setup;
+_sfc_main$7.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/SignInLink.vue");
+  return _sfc_setup$7 ? _sfc_setup$7(props, ctx) : void 0;
+};
+const __nuxt_component_4 = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-275cfa1f"]]);
+defineComponent({
+  name: "ServerPlaceholder",
+  render() {
+    return createElementBlock("div");
+  }
+});
+const clientOnlySymbol = Symbol.for("nuxt:client-only");
+const __nuxt_component_2 = defineComponent({
+  name: "ClientOnly",
+  inheritAttrs: false,
+  props: ["fallback", "placeholder", "placeholderTag", "fallbackTag"],
+  setup(_, { slots, attrs }) {
+    const mounted = ref(false);
+    provide(clientOnlySymbol, true);
+    return (props) => {
+      var _a;
+      if (mounted.value) {
+        return (_a = slots.default) == null ? void 0 : _a.call(slots);
+      }
+      const slot = slots.fallback || slots.placeholder;
+      if (slot) {
+        return slot();
+      }
+      const fallbackStr = props.fallback || props.placeholder || "";
+      const fallbackTag = props.fallbackTag || props.placeholderTag || "span";
+      return createElementBlock(fallbackTag, attrs, fallbackStr);
+    };
+  }
+});
+const _sfc_main$6 = {
+  __name: "CartTrigger",
+  __ssrInlineRender: true,
+  setup(__props) {
+    useCart();
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_Icon = __nuxt_component_0;
+      const _component_ClientOnly = __nuxt_component_2;
+      _push(`<div${ssrRenderAttrs(mergeProps({
+        class: "relative cursor-pointer inline-flex items-center",
+        title: "Cart"
+      }, _attrs))}>`);
+      _push(ssrRenderComponent(_component_Icon, {
+        name: "ph:shopping-cart",
+        size: "32",
+        style: { "color": "black" }
+      }, null, _parent));
+      _push(ssrRenderComponent(_component_ClientOnly, null, {}, _parent));
+      _push(`</div>`);
+    };
+  }
+};
+const _sfc_setup$6 = _sfc_main$6.setup;
+_sfc_main$6.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/cartElements/CartTrigger.vue");
+  return _sfc_setup$6 ? _sfc_setup$6(props, ctx) : void 0;
+};
+const y$3 = ["width", "height", "fill", "transform"], M$3 = { key: 0 }, f$5 = /* @__PURE__ */ createElementVNode("path", { d: "M224,154.8l-47.09-21.11-.18-.08a19.94,19.94,0,0,0-19,1.75,13.08,13.08,0,0,0-1.12.84l-22.31,19c-13-7.05-26.43-20.37-33.49-33.21l19.06-22.66a11.76,11.76,0,0,0,.85-1.15,20,20,0,0,0,1.66-18.83,1.42,1.42,0,0,1-.08-.18L101.2,32A20.06,20.06,0,0,0,80.42,20.15,60.27,60.27,0,0,0,28,80c0,81.61,66.39,148,148,148a60.27,60.27,0,0,0,59.85-52.42A20.06,20.06,0,0,0,224,154.8ZM176,204A124.15,124.15,0,0,1,52,80,36.29,36.29,0,0,1,80.48,44.46l18.82,42L80.14,109.28a12,12,0,0,0-.86,1.16A20,20,0,0,0,78,130.08c9.42,19.28,28.83,38.56,48.31,48A20,20,0,0,0,146,176.63a11.63,11.63,0,0,0,1.11-.85l22.43-19.07,42,18.81A36.29,36.29,0,0,1,176,204Z" }, null, -1), Z$3 = [
+  f$5
+], w$5 = { key: 1 }, k$5 = /* @__PURE__ */ createElementVNode("path", {
+  d: "M223.94,174.08A48.33,48.33,0,0,1,176,216,136,136,0,0,1,40,80,48.33,48.33,0,0,1,81.92,32.06a8,8,0,0,1,8.3,4.8l21.13,47.2a8,8,0,0,1-.66,7.53L89.32,117a7.93,7.93,0,0,0-.54,7.81c8.27,16.93,25.77,34.22,42.75,42.41a7.92,7.92,0,0,0,7.83-.59l25-21.3a8,8,0,0,1,7.59-.69l47.16,21.13A8,8,0,0,1,223.94,174.08Z",
+  opacity: "0.2"
+}, null, -1), C$4 = /* @__PURE__ */ createElementVNode("path", { d: "M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z" }, null, -1), x$5 = [
+  k$5,
+  C$4
+], S$5 = { key: 2 }, z$5 = /* @__PURE__ */ createElementVNode("path", { d: "M231.88,175.08A56.26,56.26,0,0,1,176,224C96.6,224,32,159.4,32,80A56.26,56.26,0,0,1,80.92,24.12a16,16,0,0,1,16.62,9.52l21.12,47.15,0,.12A16,16,0,0,1,117.39,96c-.18.27-.37.52-.57.77L96,121.45c7.49,15.22,23.41,31,38.83,38.51l24.34-20.71a8.12,8.12,0,0,1,.75-.56,16,16,0,0,1,15.17-1.4l.13.06,47.11,21.11A16,16,0,0,1,231.88,175.08Z" }, null, -1), B$5 = [
+  z$5
+], N$5 = { key: 3 }, P$5 = /* @__PURE__ */ createElementVNode("path", { d: "M221.59,160.3l-47.24-21.17a14,14,0,0,0-13.28,1.22,4.81,4.81,0,0,0-.56.42l-24.69,21a1.88,1.88,0,0,1-1.68.06c-15.87-7.66-32.31-24-40-39.65a1.91,1.91,0,0,1,0-1.68l21.07-25a6.13,6.13,0,0,0,.42-.58,14,14,0,0,0,1.12-13.27L95.73,34.49a14,14,0,0,0-14.56-8.38A54.24,54.24,0,0,0,34,80c0,78.3,63.7,142,142,142a54.25,54.25,0,0,0,53.89-47.17A14,14,0,0,0,221.59,160.3ZM176,210C104.32,210,46,151.68,46,80A42.23,42.23,0,0,1,82.67,38h.23a2,2,0,0,1,1.84,1.31l21.1,47.11a2,2,0,0,1,0,1.67L84.73,113.15a4.73,4.73,0,0,0-.43.57,14,14,0,0,0-.91,13.73c8.87,18.16,27.17,36.32,45.53,45.19a14,14,0,0,0,13.77-1c.19-.13.38-.27.56-.42l24.68-21a1.92,1.92,0,0,1,1.6-.1l47.25,21.17a2,2,0,0,1,1.21,2A42.24,42.24,0,0,1,176,210Z" }, null, -1), b$5 = [
+  P$5
+], E$5 = { key: 4 }, V$4 = /* @__PURE__ */ createElementVNode("path", { d: "M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z" }, null, -1), W$5 = [
+  V$4
+], $$5 = { key: 5 }, j$5 = /* @__PURE__ */ createElementVNode("path", { d: "M220.78,162.13,173.56,141A12,12,0,0,0,162.18,142a3.37,3.37,0,0,0-.38.28L137,163.42a3.93,3.93,0,0,1-3.7.21c-16.24-7.84-33.05-24.52-40.89-40.57a3.9,3.9,0,0,1,.18-3.69l21.2-25.21c.1-.12.19-.25.28-.38a12,12,0,0,0,1-11.36L93.9,35.28a12,12,0,0,0-12.48-7.19A52.25,52.25,0,0,0,36,80c0,77.2,62.8,140,140,140a52.25,52.25,0,0,0,51.91-45.42A12,12,0,0,0,220.78,162.13ZM220,173.58A44.23,44.23,0,0,1,176,212C103.22,212,44,152.78,44,80A44.23,44.23,0,0,1,82.42,36a3.87,3.87,0,0,1,.48,0,4,4,0,0,1,3.67,2.49l21.11,47.14a4,4,0,0,1-.23,3.6l-21.19,25.2c-.1.13-.2.25-.29.39a12,12,0,0,0-.78,11.75c8.69,17.79,26.61,35.58,44.6,44.27a12,12,0,0,0,11.79-.87l.37-.28,24.83-21.12a3.93,3.93,0,0,1,3.57-.27l47.21,21.16A4,4,0,0,1,220,173.58Z" }, null, -1), q$5 = [
+  j$5
+], D$1 = {
+  name: "PhPhone"
+}, H$2 = /* @__PURE__ */ defineComponent({
+  ...D$1,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(r) {
+    const l = r, d = inject("weight", "regular"), h2 = inject("size", "1em"), _ = inject("color", "currentColor"), u = inject("mirrored", false), a = computed(() => l.weight ?? d), n = computed(() => l.size ?? h2), A2 = computed(() => l.color ?? _), p = computed(() => l.mirrored !== void 0 ? l.mirrored ? "scale(-1, 1)" : void 0 : u ? "scale(-1, 1)" : void 0);
+    return (i, F) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: n.value,
+      height: n.value,
+      fill: A2.value,
+      transform: p.value
+    }, i.$attrs), [
+      renderSlot(i.$slots, "default"),
+      a.value === "bold" ? (openBlock(), createElementBlock("g", M$3, Z$3)) : a.value === "duotone" ? (openBlock(), createElementBlock("g", w$5, x$5)) : a.value === "fill" ? (openBlock(), createElementBlock("g", S$5, B$5)) : a.value === "light" ? (openBlock(), createElementBlock("g", N$5, b$5)) : a.value === "regular" ? (openBlock(), createElementBlock("g", E$5, W$5)) : a.value === "thin" ? (openBlock(), createElementBlock("g", $$5, q$5)) : createCommentVNode("", true)
+    ], 16, y$3));
+  }
+});
+const M$2 = ["width", "height", "fill", "transform"], v$2 = { key: 0 }, y$2 = /* @__PURE__ */ createElementVNode("path", { d: "M224,44H32A12,12,0,0,0,20,56V192a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V56A12,12,0,0,0,224,44Zm-96,83.72L62.85,68h130.3ZM92.79,128,44,172.72V83.28Zm17.76,16.28,9.34,8.57a12,12,0,0,0,16.22,0l9.34-8.57L193.15,188H62.85ZM163.21,128,212,83.28v89.44Z" }, null, -1), f$4 = [
+  y$2
+], L$1 = { key: 1 }, w$4 = /* @__PURE__ */ createElementVNode("path", {
+  d: "M224,56l-96,88L32,56Z",
+  opacity: "0.2"
+}, null, -1), k$4 = /* @__PURE__ */ createElementVNode("path", { d: "M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48Zm-96,85.15L52.57,64H203.43ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z" }, null, -1), A$3 = [
+  w$4,
+  k$4
+], x$4 = { key: 2 }, S$4 = /* @__PURE__ */ createElementVNode("path", { d: "M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z" }, null, -1), z$4 = [
+  S$4
+], C$3 = { key: 3 }, B$4 = /* @__PURE__ */ createElementVNode("path", { d: "M224,50H32a6,6,0,0,0-6,6V192a14,14,0,0,0,14,14H216a14,14,0,0,0,14-14V56A6,6,0,0,0,224,50Zm-96,85.86L47.42,62H208.58ZM101.67,128,38,186.36V69.64Zm8.88,8.14L124,148.42a6,6,0,0,0,8.1,0l13.4-12.28L208.58,194H47.43ZM154.33,128,218,69.64V186.36Z" }, null, -1), E$4 = [
+  B$4
+], N$4 = { key: 4 }, b$4 = /* @__PURE__ */ createElementVNode("path", { d: "M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48Zm-96,85.15L52.57,64H203.43ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z" }, null, -1), P$4 = [
+  b$4
+], W$4 = { key: 5 }, $$4 = /* @__PURE__ */ createElementVNode("path", { d: "M224,52H32a4,4,0,0,0-4,4V192a12,12,0,0,0,12,12H216a12,12,0,0,0,12-12V56A4,4,0,0,0,224,52Zm-96,86.57L42.28,60H213.72ZM104.63,128,36,190.91V65.09Zm5.92,5.43L125.3,147a4,4,0,0,0,5.4,0l14.75-13.52L213.72,196H42.28ZM151.37,128,220,65.09V190.91Z" }, null, -1), j$4 = [
+  $$4
+], q$4 = {
+  name: "PhEnvelope"
+}, G$3 = /* @__PURE__ */ defineComponent({
+  ...q$4,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(d) {
+    const l = d, c = inject("weight", "regular"), _ = inject("size", "1em"), h2 = inject("color", "currentColor"), m = inject("mirrored", false), s = computed(() => l.weight ?? c), i = computed(() => l.size ?? _), u = computed(() => l.color ?? h2), Z2 = computed(() => l.mirrored !== void 0 ? l.mirrored ? "scale(-1, 1)" : void 0 : m ? "scale(-1, 1)" : void 0);
+    return (r, D2) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: i.value,
+      height: i.value,
+      fill: u.value,
+      transform: Z2.value
+    }, r.$attrs), [
+      renderSlot(r.$slots, "default"),
+      s.value === "bold" ? (openBlock(), createElementBlock("g", v$2, f$4)) : s.value === "duotone" ? (openBlock(), createElementBlock("g", L$1, A$3)) : s.value === "fill" ? (openBlock(), createElementBlock("g", x$4, z$4)) : s.value === "light" ? (openBlock(), createElementBlock("g", C$3, E$4)) : s.value === "regular" ? (openBlock(), createElementBlock("g", N$4, P$4)) : s.value === "thin" ? (openBlock(), createElementBlock("g", W$4, j$4)) : createCommentVNode("", true)
+    ], 16, M$2));
+  }
+});
+const v$1 = ["width", "height", "fill", "transform"], y$1 = { key: 0 }, f$3 = /* @__PURE__ */ createElementVNode("path", { d: "M228,128a12,12,0,0,1-12,12H40a12,12,0,0,1,0-24H216A12,12,0,0,1,228,128ZM40,76H216a12,12,0,0,0,0-24H40a12,12,0,0,0,0,24ZM216,180H40a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24Z" }, null, -1), w$3 = [
+  f$3
+], k$3 = { key: 1 }, A$2 = /* @__PURE__ */ createElementVNode("path", {
+  d: "M216,64V192H40V64Z",
+  opacity: "0.2"
+}, null, -1), x$3 = /* @__PURE__ */ createElementVNode("path", { d: "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z" }, null, -1), S$3 = [
+  A$2,
+  x$3
+], V$3 = { key: 2 }, z$3 = /* @__PURE__ */ createElementVNode("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM192,184H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16Zm0-48H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16Zm0-48H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16Z" }, null, -1), C$2 = [
+  z$3
+], B$3 = { key: 3 }, N$3 = /* @__PURE__ */ createElementVNode("path", { d: "M222,128a6,6,0,0,1-6,6H40a6,6,0,0,1,0-12H216A6,6,0,0,1,222,128ZM40,70H216a6,6,0,0,0,0-12H40a6,6,0,0,0,0,12ZM216,186H40a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Z" }, null, -1), b$3 = [
+  N$3
+], E$3 = { key: 4 }, P$3 = /* @__PURE__ */ createElementVNode("path", { d: "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z" }, null, -1), W$3 = [
+  P$3
+], $$3 = { key: 5 }, j$3 = /* @__PURE__ */ createElementVNode("path", { d: "M220,128a4,4,0,0,1-4,4H40a4,4,0,0,1,0-8H216A4,4,0,0,1,220,128ZM40,68H216a4,4,0,0,0,0-8H40a4,4,0,0,0,0,8ZM216,188H40a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8Z" }, null, -1), L = [
+  j$3
+], q$3 = {
+  name: "PhList"
+}, G$2 = /* @__PURE__ */ defineComponent({
+  ...q$3,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(d) {
+    const s = d, c = inject("weight", "regular"), _ = inject("size", "1em"), h2 = inject("color", "currentColor"), H2 = inject("mirrored", false), a = computed(() => s.weight ?? c), l = computed(() => s.size ?? _), u = computed(() => s.color ?? h2), p = computed(() => s.mirrored !== void 0 ? s.mirrored ? "scale(-1, 1)" : void 0 : H2 ? "scale(-1, 1)" : void 0);
+    return (r, D2) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: l.value,
+      height: l.value,
+      fill: u.value,
+      transform: p.value
+    }, r.$attrs), [
+      renderSlot(r.$slots, "default"),
+      a.value === "bold" ? (openBlock(), createElementBlock("g", y$1, w$3)) : a.value === "duotone" ? (openBlock(), createElementBlock("g", k$3, S$3)) : a.value === "fill" ? (openBlock(), createElementBlock("g", V$3, C$2)) : a.value === "light" ? (openBlock(), createElementBlock("g", B$3, b$3)) : a.value === "regular" ? (openBlock(), createElementBlock("g", E$3, W$3)) : a.value === "thin" ? (openBlock(), createElementBlock("g", $$3, L)) : createCommentVNode("", true)
+    ], 16, v$1));
+  }
+});
+const f$2 = ["width", "height", "fill", "transform"], Z$2 = { key: 0 }, w$2 = /* @__PURE__ */ createElementVNode("path", { d: "M234.38,210a123.36,123.36,0,0,0-60.78-53.23,76,76,0,1,0-91.2,0A123.36,123.36,0,0,0,21.62,210a12,12,0,1,0,20.77,12c18.12-31.32,50.12-50,85.61-50s67.49,18.69,85.61,50a12,12,0,0,0,20.77-12ZM76,96a52,52,0,1,1,52,52A52.06,52.06,0,0,1,76,96Z" }, null, -1), C$1 = [
+  w$2
+], A$1 = { key: 1 }, k$2 = /* @__PURE__ */ createElementVNode("path", {
+  d: "M192,96a64,64,0,1,1-64-64A64,64,0,0,1,192,96Z",
+  opacity: "0.2"
+}, null, -1), x$2 = /* @__PURE__ */ createElementVNode("path", { d: "M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z" }, null, -1), S$2 = [
+  k$2,
+  x$2
+], z$2 = { key: 2 }, B$2 = /* @__PURE__ */ createElementVNode("path", { d: "M230.93,220a8,8,0,0,1-6.93,4H32a8,8,0,0,1-6.92-12c15.23-26.33,38.7-45.21,66.09-54.16a72,72,0,1,1,73.66,0c27.39,8.95,50.86,27.83,66.09,54.16A8,8,0,0,1,230.93,220Z" }, null, -1), N$2 = [
+  B$2
+], b$2 = { key: 3 }, E$2 = /* @__PURE__ */ createElementVNode("path", { d: "M229.19,213c-15.81-27.32-40.63-46.49-69.47-54.62a70,70,0,1,0-63.44,0C67.44,166.5,42.62,185.67,26.81,213a6,6,0,1,0,10.38,6C56.4,185.81,90.34,166,128,166s71.6,19.81,90.81,53a6,6,0,1,0,10.38-6ZM70,96a58,58,0,1,1,58,58A58.07,58.07,0,0,1,70,96Z" }, null, -1), P$2 = [
+  E$2
+], V$2 = { key: 4 }, W$2 = /* @__PURE__ */ createElementVNode("path", { d: "M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z" }, null, -1), $$2 = [
+  W$2
+], j$2 = { key: 5 }, H$1 = /* @__PURE__ */ createElementVNode("path", { d: "M227.46,214c-16.52-28.56-43-48.06-73.68-55.09a68,68,0,1,0-51.56,0c-30.64,7-57.16,26.53-73.68,55.09a4,4,0,0,0,6.92,4C55,184.19,89.62,164,128,164s73,20.19,92.54,54a4,4,0,0,0,3.46,2,3.93,3.93,0,0,0,2-.54A4,4,0,0,0,227.46,214ZM68,96a60,60,0,1,1,60,60A60.07,60.07,0,0,1,68,96Z" }, null, -1), U = [
+  H$1
+], q$2 = {
+  name: "PhUser"
+}, G$1 = /* @__PURE__ */ defineComponent({
+  ...q$2,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(r) {
+    const a = r, d = inject("weight", "regular"), _ = inject("size", "1em"), h2 = inject("color", "currentColor"), u = inject("mirrored", false), s = computed(() => a.weight ?? d), i = computed(() => a.size ?? _), p = computed(() => a.color ?? h2), g = computed(() => a.mirrored !== void 0 ? a.mirrored ? "scale(-1, 1)" : void 0 : u ? "scale(-1, 1)" : void 0);
+    return (l, D2) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: i.value,
+      height: i.value,
+      fill: p.value,
+      transform: g.value
+    }, l.$attrs), [
+      renderSlot(l.$slots, "default"),
+      s.value === "bold" ? (openBlock(), createElementBlock("g", Z$2, C$1)) : s.value === "duotone" ? (openBlock(), createElementBlock("g", A$1, S$2)) : s.value === "fill" ? (openBlock(), createElementBlock("g", z$2, N$2)) : s.value === "light" ? (openBlock(), createElementBlock("g", b$2, P$2)) : s.value === "regular" ? (openBlock(), createElementBlock("g", V$2, $$2)) : s.value === "thin" ? (openBlock(), createElementBlock("g", j$2, U)) : createCommentVNode("", true)
+    ], 16, f$2));
+  }
+});
+const A = ["width", "height", "fill", "transform"], M$1 = { key: 0 }, f$1 = /* @__PURE__ */ createElementVNode("path", { d: "M178,36c-20.09,0-37.92,7.93-50,21.56C115.92,43.93,98.09,36,78,36a66.08,66.08,0,0,0-66,66c0,72.34,105.81,130.14,110.31,132.57a12,12,0,0,0,11.38,0C138.19,232.14,244,174.34,244,102A66.08,66.08,0,0,0,178,36Zm-5.49,142.36A328.69,328.69,0,0,1,128,210.16a328.69,328.69,0,0,1-44.51-31.8C61.82,159.77,36,131.42,36,102A42,42,0,0,1,78,60c17.8,0,32.7,9.4,38.89,24.54a12,12,0,0,0,22.22,0C145.3,69.4,160.2,60,178,60a42,42,0,0,1,42,42C220,131.42,194.18,159.77,172.51,178.36Z" }, null, -1), Z$1 = [
+  f$1
+], w$1 = { key: 1 }, k$1 = /* @__PURE__ */ createElementVNode("path", {
+  d: "M232,102c0,66-104,122-104,122S24,168,24,102A54,54,0,0,1,78,48c22.59,0,41.94,12.31,50,32,8.06-19.69,27.41-32,50-32A54,54,0,0,1,232,102Z",
+  opacity: "0.2"
+}, null, -1), S$1 = /* @__PURE__ */ createElementVNode("path", { d: "M178,40c-20.65,0-38.73,8.88-50,23.89C116.73,48.88,98.65,40,78,40a62.07,62.07,0,0,0-62,62c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,228.66,240,172,240,102A62.07,62.07,0,0,0,178,40ZM128,214.8C109.74,204.16,32,155.69,32,102A46.06,46.06,0,0,1,78,56c19.45,0,35.78,10.36,42.6,27a8,8,0,0,0,14.8,0c6.82-16.67,23.15-27,42.6-27a46.06,46.06,0,0,1,46,46C224,155.61,146.24,204.15,128,214.8Z" }, null, -1), x$1 = [
+  k$1,
+  S$1
+], z$1 = { key: 2 }, B$1 = /* @__PURE__ */ createElementVNode("path", { d: "M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z" }, null, -1), N$1 = [
+  B$1
+], b$1 = { key: 3 }, E$1 = /* @__PURE__ */ createElementVNode("path", { d: "M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42ZM128,217.11C111.59,207.64,30,157.72,30,102A48.05,48.05,0,0,1,78,54c20.28,0,37.31,10.83,44.45,28.27a6,6,0,0,0,11.1,0C140.69,64.83,157.72,54,178,54a48.05,48.05,0,0,1,48,48C226,157.72,144.41,207.64,128,217.11Z" }, null, -1), P$1 = [
+  E$1
+], V$1 = { key: 4 }, W$1 = /* @__PURE__ */ createElementVNode("path", { d: "M178,40c-20.65,0-38.73,8.88-50,23.89C116.73,48.88,98.65,40,78,40a62.07,62.07,0,0,0-62,62c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,228.66,240,172,240,102A62.07,62.07,0,0,0,178,40ZM128,214.8C109.74,204.16,32,155.69,32,102A46.06,46.06,0,0,1,78,56c19.45,0,35.78,10.36,42.6,27a8,8,0,0,0,14.8,0c6.82-16.67,23.15-27,42.6-27a46.06,46.06,0,0,1,46,46C224,155.61,146.24,204.15,128,214.8Z" }, null, -1), $$1 = [
+  W$1
+], j$1 = { key: 5 }, H = /* @__PURE__ */ createElementVNode("path", { d: "M178,44c-21.44,0-39.92,10.19-50,27.07C117.92,54.19,99.44,44,78,44a58.07,58.07,0,0,0-58,58c0,28.59,18,58.47,53.4,88.79a333.81,333.81,0,0,0,52.7,36.73,4,4,0,0,0,3.8,0,333.81,333.81,0,0,0,52.7-36.73C218,160.47,236,130.59,236,102A58.07,58.07,0,0,0,178,44ZM128,219.42c-14-8-100-59.35-100-117.42A50.06,50.06,0,0,1,78,52c21.11,0,38.85,11.31,46.3,29.51a4,4,0,0,0,7.4,0C139.15,63.31,156.89,52,178,52a50.06,50.06,0,0,1,50,50C228,160,142,211.46,128,219.42Z" }, null, -1), q$1 = [
+  H
+], D = {
+  name: "PhHeart"
+}, I = /* @__PURE__ */ defineComponent({
+  ...D,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(r) {
+    const c = r, d = inject("weight", "regular"), _ = inject("size", "1em"), h2 = inject("color", "currentColor"), u = inject("mirrored", false), s = computed(() => c.weight ?? d), i = computed(() => c.size ?? _), C2 = computed(() => c.color ?? h2), p = computed(() => c.mirrored !== void 0 ? c.mirrored ? "scale(-1, 1)" : void 0 : u ? "scale(-1, 1)" : void 0);
+    return (l, F) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: i.value,
+      height: i.value,
+      fill: C2.value,
+      transform: p.value
+    }, l.$attrs), [
+      renderSlot(l.$slots, "default"),
+      s.value === "bold" ? (openBlock(), createElementBlock("g", M$1, Z$1)) : s.value === "duotone" ? (openBlock(), createElementBlock("g", w$1, x$1)) : s.value === "fill" ? (openBlock(), createElementBlock("g", z$1, N$1)) : s.value === "light" ? (openBlock(), createElementBlock("g", b$1, P$1)) : s.value === "regular" ? (openBlock(), createElementBlock("g", V$1, $$1)) : s.value === "thin" ? (openBlock(), createElementBlock("g", j$1, q$1)) : createCommentVNode("", true)
+    ], 16, A));
+  }
+});
+const Z = ["width", "height", "fill", "transform"], v = { key: 0 }, y = /* @__PURE__ */ createElementVNode("path", { d: "M233.21,56.31A12,12,0,0,0,224,52H66L60.53,21.85A12,12,0,0,0,48.73,12H24a12,12,0,0,0,0,24H38.71L63.62,173a28,28,0,0,0,4.07,10.21A32,32,0,1,0,123,196h34a32,32,0,1,0,31-24H91.17a4,4,0,0,1-3.93-3.28L84.92,156H196.1a28,28,0,0,0,27.55-23l12.16-66.86A12,12,0,0,0,233.21,56.31ZM100,204a8,8,0,1,1-8-8A8,8,0,0,1,100,204Zm88,8a8,8,0,1,1,8-8A8,8,0,0,1,188,212Zm12-83.28A4,4,0,0,1,196.1,132H80.56L70.38,76H209.62Z" }, null, -1), M = [
+  y
+], f = { key: 1 }, w = /* @__PURE__ */ createElementVNode("path", {
+  d: "M224,64l-12.16,66.86A16,16,0,0,1,196.1,144H70.55L56,64Z",
+  opacity: "0.2"
+}, null, -1), k = /* @__PURE__ */ createElementVNode("path", { d: "M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Zm4-74.57A8,8,0,0,1,196.1,136H77.22L65.59,72H214.41Z" }, null, -1), S = [
+  w,
+  k
+], x = { key: 2 }, C = /* @__PURE__ */ createElementVNode("path", { d: "M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Z" }, null, -1), z = [
+  C
+], B = { key: 3 }, N = /* @__PURE__ */ createElementVNode("path", { d: "M228.61,60.16A6,6,0,0,0,224,58H61L54.63,22.93A6,6,0,0,0,48.73,18H24a6,6,0,0,0,0,12H43.72L69.53,171.94a21.93,21.93,0,0,0,6.24,11.77A26,26,0,1,0,113.89,190h52.22A26,26,0,1,0,188,178H91.17a10,10,0,0,1-9.84-8.21L77.73,150H196.1a22,22,0,0,0,21.65-18.06L229.9,65.07A6,6,0,0,0,228.61,60.16ZM106,204a14,14,0,1,1-14-14A14,14,0,0,1,106,204Zm96,0a14,14,0,1,1-14-14A14,14,0,0,1,202,204Zm3.94-74.21A10,10,0,0,1,196.1,138H75.55L63.19,70H216.81Z" }, null, -1), b = [
+  N
+], E = { key: 4 }, P = /* @__PURE__ */ createElementVNode("path", { d: "M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Zm4-74.57A8,8,0,0,1,196.1,136H77.22L65.59,72H214.41Z" }, null, -1), V = [
+  P
+], W = { key: 5 }, $ = /* @__PURE__ */ createElementVNode("path", { d: "M227.07,61.44A4,4,0,0,0,224,60H59.34L52.66,23.28A4,4,0,0,0,48.73,20H24a4,4,0,0,0,0,8H45.39l6.69,36.8h0L71.49,171.58A20,20,0,0,0,79,183.85,24,24,0,1,0,109.87,188h60.26A24,24,0,1,0,188,180H91.17a12,12,0,0,1-11.8-9.85l-4-22.15H196.1a20,20,0,0,0,19.68-16.42l12.16-66.86A4,4,0,0,0,227.07,61.44ZM108,204a16,16,0,1,1-16-16A16,16,0,0,1,108,204Zm96,0a16,16,0,1,1-16-16A16,16,0,0,1,204,204Zm3.91-73.85A12,12,0,0,1,196.1,140H73.88L60.79,68H219.21Z" }, null, -1), j = [
+  $
+], q = {
+  name: "PhShoppingCart"
+}, G = /* @__PURE__ */ defineComponent({
+  ...q,
+  props: {
+    weight: {
+      type: String
+    },
+    size: {
+      type: [String, Number]
+    },
+    color: {
+      type: String
+    },
+    mirrored: {
+      type: Boolean
+    }
+  },
+  setup(h2) {
+    const s = h2, d = inject("weight", "regular"), c = inject("size", "1em"), _ = inject("color", "currentColor"), A2 = inject("mirrored", false), a = computed(() => s.weight ?? d), i = computed(() => s.size ?? c), H2 = computed(() => s.color ?? _), m = computed(() => s.mirrored !== void 0 ? s.mirrored ? "scale(-1, 1)" : void 0 : A2 ? "scale(-1, 1)" : void 0);
+    return (r, D2) => (openBlock(), createElementBlock("svg", mergeProps({
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 256 256",
+      width: i.value,
+      height: i.value,
+      fill: H2.value,
+      transform: m.value
+    }, r.$attrs), [
+      renderSlot(r.$slots, "default"),
+      a.value === "bold" ? (openBlock(), createElementBlock("g", v, M)) : a.value === "duotone" ? (openBlock(), createElementBlock("g", f, S)) : a.value === "fill" ? (openBlock(), createElementBlock("g", x, z)) : a.value === "light" ? (openBlock(), createElementBlock("g", B, b)) : a.value === "regular" ? (openBlock(), createElementBlock("g", E, V)) : a.value === "thin" ? (openBlock(), createElementBlock("g", W, j)) : createCommentVNode("", true)
+    ], 16, Z));
+  }
+});
+const _sfc_main$5 = /* @__PURE__ */ defineComponent({
+  __name: "AppHeader",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const links = [
+      { name: "Rólunk", link: "/", prefetch: true },
+      { name: "Galéria", link: "/" },
+      { name: "Étlap", link: "/", prefetch: true },
+      { name: "Kapcsolat", link: "/" }
+    ];
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_MenuTrigger = _sfc_main$b;
+      const _component_NuxtLink = __nuxt_component_10;
+      const _component_NuxtImg = _sfc_main$a;
+      const _component_ProductSearch = _sfc_main$9;
+      const _component_SignInLink = __nuxt_component_4;
+      const _component_CartTrigger = _sfc_main$6;
+      const _component_PhosphorIconPhone = H$2;
+      const _component_PhosphorIconEnvelope = G$3;
+      const _component_PhosphorIconList = G$2;
+      const _component_PhosphorIconMagnifyingGlass = I$1;
+      const _component_PhosphorIconUser = G$1;
+      const _component_PhosphorIconHeart = I;
+      const _component_PhosphorIconShoppingCart = G;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "flex flex-col" }, _attrs))}><header class="z-50 sticky top-0 bg-white"><div class="container flex justify-between items-center py-4 gap-10">`);
+      _push(ssrRenderComponent(_component_MenuTrigger, { class: "lg:hidden" }, null, _parent));
+      _push(ssrRenderComponent(_component_NuxtLink, {
+        to: "/",
+        class: "shrink-0"
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(ssrRenderComponent(_component_NuxtImg, {
+              src: "/img/logo.svg",
+              class: ""
+            }, null, _parent2, _scopeId));
+          } else {
+            return [
+              createVNode(_component_NuxtImg, {
+                src: "/img/logo.svg",
+                class: ""
+              })
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`<div class="space-x-16 lg:flex items-center hidden"><!--[-->`);
+      ssrRenderList(links, (link) => {
+        _push(ssrRenderComponent(_component_NuxtLink, {
+          key: link.name,
+          to: link.link,
+          class: ""
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`${ssrInterpolate(link.name)}`);
+            } else {
+              return [
+                createTextVNode(toDisplayString$1(link.name), 1)
+              ];
+            }
+          }),
+          _: 2
+        }, _parent));
+      });
+      _push(`<!--]--></div><div class="flex gap-4">`);
+      _push(ssrRenderComponent(_component_ProductSearch, { class: "hidden md:inline-flex max-w-[320px]" }, null, _parent));
+      _push(ssrRenderComponent(_component_SignInLink, null, null, _parent));
+      _push(ssrRenderComponent(_component_CartTrigger, null, null, _parent));
+      _push(`</div></div></header><header class="hidden py-4 text-sm text-white bg-dark lg:block"><div class="container px-4 mx-auto"><div class="flex items-center justify-between"><nav><ul class="flex space-x-6"><li><a href="#" class="hover:text-gray">Request a Quote</a></li><li><a href="#" class="hover:text-gray">Prices</a></li><li><a href="#" class="hover:text-gray">About Us</a></li></ul></nav><div class="flex items-center space-x-4"><div class="flex items-center">`);
+      _push(ssrRenderComponent(_component_PhosphorIconPhone, { class: "mr-2" }, null, _parent));
+      _push(`<span>0670 37 71 506</span></div><div class="flex items-center">`);
+      _push(ssrRenderComponent(_component_PhosphorIconEnvelope, { class: "mr-2" }, null, _parent));
+      _push(`<span>lengyelmarket@gmail.com</span></div></div></div></div></header><nav class="py-4 text-white bg-primary"><div class="container px-4 mx-auto"><div class="flex flex-col items-center justify-between md:gap-14 lg:flex-row"><div class="flex items-center justify-between w-full mb-4 lg:w-auto lg:mb-0"><div class="flex items-center shrink-0">`);
+      _push(ssrRenderComponent(_component_NuxtImg, {
+        src: "/img/logo.svg",
+        alt: "Acarparts Logo",
+        class: "w-[150px] mr-[50px] shrink-0"
+      }, null, _parent));
+      _push(`</div><div class="space-x-16 lg:flex items-center hidden"><!--[-->`);
+      ssrRenderList(links, (link) => {
+        _push(ssrRenderComponent(_component_NuxtLink, {
+          key: link.name,
+          to: link.link,
+          class: ""
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`${ssrInterpolate(link.name)}`);
+            } else {
+              return [
+                createTextVNode(toDisplayString$1(link.name), 1)
+              ];
+            }
+          }),
+          _: 2
+        }, _parent));
+      });
+      _push(`<!--]--></div></div><div class="w-full mb-4 lg:mb-0"><div class="flex items-center p-1 bg-white rounded-[11px] shadow-big"><button class="p-2 mr-2 text-white bg-black rounded-[7px]">`);
+      _push(ssrRenderComponent(_component_PhosphorIconList, {
+        size: 24,
+        weight: "bold"
+      }, null, _parent));
+      _push(`</button><input type="text" placeholder="Alkatrész, gyártó vagy modell neve" class="flex-grow bg-transparent border-transparent placeholder-dark/50 text-dark focus:border-transparent"><button class="p-2 text-white rounded-[7px] bg-primary w-[91px] flex items-center justify-center hover:bg-red-800 transition">`);
+      _push(ssrRenderComponent(_component_PhosphorIconMagnifyingGlass, {
+        size: 24,
+        weight: "bold"
+      }, null, _parent));
+      _push(`</button></div></div><div class="items-center hidden space-x-4 lg:flex">`);
+      _push(ssrRenderComponent(_component_PhosphorIconUser, { size: "24" }, null, _parent));
+      _push(ssrRenderComponent(_component_PhosphorIconHeart, { size: "24" }, null, _parent));
+      _push(ssrRenderComponent(_component_PhosphorIconShoppingCart, { size: "24" }, null, _parent));
+      _push(`</div></div></div></nav></div>`);
+    };
+  }
+});
+const _sfc_setup$5 = _sfc_main$5.setup;
+_sfc_main$5.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/generalElements/AppHeader.vue");
+  return _sfc_setup$5 ? _sfc_setup$5(props, ctx) : void 0;
+};
+const _sfc_main$4 = /* @__PURE__ */ defineComponent({
+  __name: "MobileMenu",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const { toggleMobileMenu } = useHelpers();
+    const links = [
+      { text: "Főoldal", to: "/", prefetch: false },
+      { text: "Rólunk", to: "/rolunk", prefetch: false },
+      { text: "Galéria", to: "/galeria", prefetch: false },
+      { text: "Étlap", to: "/products", prefetch: false },
+      { text: "Kapcsolat", to: "/kapcsolat", prefetch: false }
+    ];
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_Icon = __nuxt_component_0;
+      const _component_ProductSearch = _sfc_main$9;
+      const _component_NuxtLink = __nuxt_component_10;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "bg-white flex flex-col max-w-lg shadow-lg top-0 bottom-0 left-0 w-11/12 z-50 fixed overflow-x-hidden p-20" }, _attrs))}>`);
+      _push(ssrRenderComponent(_component_Icon, {
+        name: "ion:close-outline",
+        class: "absolute p-1 rounded-lg shadow-lg top-6 left-6 md:left-8 cursor-pointer hover:text-primary transition",
+        size: "34",
+        onClick: ($event) => unref(toggleMobileMenu)(false)
+      }, null, _parent));
+      _push(`<div class="flex flex-col items-center justify-center h-full gap-10">`);
+      _push(ssrRenderComponent(_component_ProductSearch, { class: "h-fit w-full relative" }, null, _parent));
+      _push(`<nav class="flex flex-col items-center justify-center gap-10"><!--[-->`);
+      ssrRenderList(links, (link) => {
+        _push(ssrRenderComponent(_component_NuxtLink, {
+          key: link.to,
+          to: link.to,
+          class: [
+            "cursor-pointer text-lg transition hover:text-primary",
+            link.class
+          ],
+          "active-class": "text-primary",
+          prefetch: link.prefetch
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`${ssrInterpolate(link.text)}`);
+            } else {
+              return [
+                createTextVNode(toDisplayString$1(link.text), 1)
+              ];
+            }
+          }),
+          _: 2
+        }, _parent));
+      });
+      _push(`<!--]--></nav></div></div>`);
+    };
+  }
+});
+const _sfc_setup$4 = _sfc_main$4.setup;
+_sfc_main$4.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/generalElements/MobileMenu.vue");
+  return _sfc_setup$4 ? _sfc_setup$4(props, ctx) : void 0;
+};
+const RouteProvider = defineComponent({
+  props: {
+    vnode: {
+      type: Object,
+      required: true
+    },
+    route: {
+      type: Object,
+      required: true
+    },
+    vnodeRef: Object,
+    renderKey: String,
+    trackRootNodes: Boolean
+  },
+  setup(props) {
+    const previousKey = props.renderKey;
+    const previousRoute = props.route;
+    const route = {};
+    for (const key in props.route) {
+      Object.defineProperty(route, key, {
+        get: () => previousKey === props.renderKey ? props.route[key] : previousRoute[key],
+        enumerable: true
+      });
+    }
+    provide(PageRouteSymbol, shallowReactive(route));
+    return () => {
+      return h(props.vnode, { ref: props.vnodeRef });
+    };
+  }
+});
+const __nuxt_component_3$1 = defineComponent({
+  name: "NuxtPage",
+  inheritAttrs: false,
+  props: {
+    name: {
+      type: String
+    },
+    transition: {
+      type: [Boolean, Object],
+      default: void 0
+    },
+    keepalive: {
+      type: [Boolean, Object],
+      default: void 0
+    },
+    route: {
+      type: Object
+    },
+    pageKey: {
+      type: [Function, String],
+      default: null
+    }
+  },
+  setup(props, { attrs, slots, expose }) {
+    const nuxtApp = useNuxtApp();
+    const pageRef = ref();
+    const forkRoute = inject(PageRouteSymbol, null);
+    let previousPageKey;
+    expose({ pageRef });
+    inject(LayoutMetaSymbol, null);
+    let vnode;
+    const done = nuxtApp.deferHydration();
+    if (props.pageKey) {
+      watch(() => props.pageKey, (next, prev) => {
+        if (next !== prev) {
+          nuxtApp.callHook("page:loading:start");
+        }
+      });
+    }
+    return () => {
+      return h(RouterView, { name: props.name, route: props.route, ...attrs }, {
+        default: (routeProps) => {
+          if (!routeProps.Component) {
+            done();
+            return;
+          }
+          const key = generateRouteKey$1(routeProps, props.pageKey);
+          if (!nuxtApp.isHydrating && !hasChildrenRoutes(forkRoute, routeProps.route, routeProps.Component) && previousPageKey === key) {
+            nuxtApp.callHook("page:loading:end");
+          }
+          previousPageKey = key;
+          const hasTransition = !!(props.transition ?? routeProps.route.meta.pageTransition ?? appPageTransition);
+          const transitionProps = hasTransition && _mergeTransitionProps([
+            props.transition,
+            routeProps.route.meta.pageTransition,
+            appPageTransition,
+            { onAfterLeave: () => {
+              nuxtApp.callHook("page:transition:finish", routeProps.Component);
+            } }
+          ].filter(Boolean));
+          const keepaliveConfig = props.keepalive ?? routeProps.route.meta.keepalive ?? appKeepalive;
+          vnode = _wrapIf(
+            Transition,
+            hasTransition && transitionProps,
+            wrapInKeepAlive(
+              keepaliveConfig,
+              h(Suspense, {
+                suspensible: true,
+                onPending: () => nuxtApp.callHook("page:start", routeProps.Component),
+                onResolve: () => {
+                  nextTick(() => nuxtApp.callHook("page:finish", routeProps.Component).then(() => nuxtApp.callHook("page:loading:end")).finally(done));
+                }
+              }, {
+                default: () => {
+                  const providerVNode = h(RouteProvider, {
+                    key: key || void 0,
+                    vnode: slots.default ? h(Fragment, void 0, slots.default(routeProps)) : routeProps.Component,
+                    route: routeProps.route,
+                    renderKey: key || void 0,
+                    trackRootNodes: hasTransition,
+                    vnodeRef: pageRef
+                  });
+                  return providerVNode;
+                }
+              })
+            )
+          ).default();
+          return vnode;
+        }
+      });
+    };
+  }
+});
+function _mergeTransitionProps(routeProps) {
+  const _props = routeProps.map((prop) => ({
+    ...prop,
+    onAfterLeave: prop.onAfterLeave ? toArray(prop.onAfterLeave) : void 0
+  }));
+  return defu(..._props);
+}
+function hasChildrenRoutes(fork, newRoute, Component) {
+  if (!fork) {
+    return false;
+  }
+  const index2 = newRoute.matched.findIndex((m) => {
+    var _a;
+    return ((_a = m.components) == null ? void 0 : _a.default) === (Component == null ? void 0 : Component.type);
+  });
+  return index2 < newRoute.matched.length - 1;
+}
+const _sfc_main$3 = {};
+function _sfc_ssrRender(_ctx, _push, _parent, _attrs) {
+  const _component_NuxtImg = _sfc_main$a;
+  const _component_NuxtLink = __nuxt_component_10;
+  _push(`<footer${ssrRenderAttrs(mergeProps({ class: "relative w-full overflow-hidden bg-dark" }, _attrs))}><div clasS="container flex items-center gap-12 py-10 md:gap-32"><div class="max-w-sm">`);
+  _push(ssrRenderComponent(_component_NuxtImg, {
+    src: "/img/logo.svg",
+    class: "min-w-[150px] mb-[50px]"
+  }, null, _parent));
+  _push(`<div class="flex flex-wrap gap-4">`);
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Request a Quote`);
+      } else {
+        return [
+          createTextVNode("Request a Quote")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Services`);
+      } else {
+        return [
+          createTextVNode("Services")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Prices`);
+      } else {
+        return [
+          createTextVNode("Prices")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Delivery`);
+      } else {
+        return [
+          createTextVNode("Delivery")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Payment`);
+      } else {
+        return [
+          createTextVNode("Payment")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Returns`);
+      } else {
+        return [
+          createTextVNode("Returns")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(ssrRenderComponent(_component_NuxtLink, {
+    to: "#",
+    class: "text-sm text-white"
+  }, {
+    default: withCtx((_, _push2, _parent2, _scopeId) => {
+      if (_push2) {
+        _push2(`Terms of use`);
+      } else {
+        return [
+          createTextVNode("Terms of use")
+        ];
+      }
+    }),
+    _: 1
+  }, _parent));
+  _push(`</div></div>`);
+  _push(ssrRenderComponent(_component_NuxtImg, {
+    src: "/img/car-wireframe.svg",
+    class: "lg:w-[380px]"
+  }, null, _parent));
+  _push(`<div class="absolute right-0 flex flex-col justify-start items-end gap-[20px] bottom-10 md:bottom-auto">`);
+  _push(ssrRenderComponent(_component_NuxtImg, {
+    src: "/img/payment.svg",
+    class: "h-10 md:h-[75px]"
+  }, null, _parent));
+  _push(ssrRenderComponent(_component_NuxtImg, {
+    src: "/digital-seed-studio/logo-h.svg",
+    class: "h-10 md:h-[50px]"
+  }, null, _parent));
+  _push(`</div></div></footer>`);
+}
+const _sfc_setup$3 = _sfc_main$3.setup;
+_sfc_main$3.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/components/generalElements/AppFooter.vue");
+  return _sfc_setup$3 ? _sfc_setup$3(props, ctx) : void 0;
+};
+const __nuxt_component_3 = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["ssrRender", _sfc_ssrRender]]);
+const __nuxt_component_1_lazy$1 = defineAsyncComponent(() => import('./Cart-C-ZKzS6H.mjs').then((c) => c.default || c));
+const _sfc_main$2 = /* @__PURE__ */ defineComponent({
+  __name: "app",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const route = useRoute();
+    const { isShowingCart, toggleCart } = useCart();
+    const { isShowingMobileMenu, toggleMobileMenu, addBodyClass, removeBodyClass } = useHelpers();
+    useAppConfig();
+    const closeCartAndMenu = () => {
+      toggleCart(false);
+      toggleMobileMenu(false);
+    };
+    watch([isShowingCart, isShowingMobileMenu], () => {
+      isShowingCart.value || isShowingMobileMenu.value ? addBodyClass("overflow-hidden") : removeBodyClass("overflow-hidden");
+    });
+    watch(
+      () => route.path,
+      () => closeCartAndMenu()
+    );
+    useHead({
+      titleTemplate: (titleChunk) => {
+        return titleChunk ? `${titleChunk} -  acarparts` : " acarparts";
+      }
+    });
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_AppHeader = _sfc_main$5;
+      const _component_LazyCart = __nuxt_component_1_lazy$1;
+      const _component_MobileMenu = _sfc_main$4;
+      const _component_NuxtPage = __nuxt_component_3$1;
+      const _component_AppFooter = __nuxt_component_3;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "flex flex-col min-h-screen font-raleway" }, _attrs))}>`);
+      _push(ssrRenderComponent(_component_AppHeader, null, null, _parent));
+      if (unref(isShowingCart)) {
+        _push(ssrRenderComponent(_component_LazyCart, null, null, _parent));
+      } else {
+        _push(`<!---->`);
+      }
+      if (unref(isShowingMobileMenu)) {
+        _push(ssrRenderComponent(_component_MobileMenu, null, null, _parent));
+      } else {
+        _push(`<!---->`);
+      }
+      _push(ssrRenderComponent(_component_NuxtPage, null, null, _parent));
+      if (unref(isShowingCart) || unref(isShowingMobileMenu)) {
+        _push(`<div class="bg-black opacity-25 inset-0 z-40 fixed"></div>`);
+      } else {
+        _push(`<!---->`);
+      }
+      _push(ssrRenderComponent(_component_AppFooter, null, null, _parent));
+      _push(`</div>`);
+    };
+  }
+});
+const _sfc_setup$2 = _sfc_main$2.setup;
+_sfc_main$2.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/app.vue");
+  return _sfc_setup$2 ? _sfc_setup$2(props, ctx) : void 0;
+};
+const __nuxt_component_1_lazy = defineAsyncComponent(() => import('./Cart-C-ZKzS6H.mjs').then((c) => c.default || c));
+const _sfc_main$1 = /* @__PURE__ */ defineComponent({
+  __name: "error",
+  __ssrInlineRender: true,
+  props: {
+    error: {}
+  },
+  setup(__props) {
+    var _a, _b;
+    const route = useRoute();
+    const { isShowingCart, toggleCart } = useCart();
+    const { isShowingMobileMenu, toggleMobileMenu, addBodyClass, removeBodyClass } = useHelpers();
+    const closeCartAndMenu = () => {
+      toggleCart(false);
+      toggleMobileMenu(false);
+    };
+    watch([isShowingCart, isShowingMobileMenu], () => {
+      isShowingCart.value || isShowingMobileMenu.value ? addBodyClass("overflow-hidden") : removeBodyClass("overflow-hidden");
+    });
+    watch(
+      () => route.path,
+      () => closeCartAndMenu()
+    );
+    useSeoMeta({
+      title: ((_a = __props.error) == null ? void 0 : _a.statusCode) ? `Error ${__props.error.statusCode}` : "Error",
+      description: ((_b = __props.error) == null ? void 0 : _b.message) || ""
+    });
+    return (_ctx, _push, _parent, _attrs) => {
+      var _a2, _b2;
+      const _component_AppHeader = _sfc_main$5;
+      const _component_LazyCart = __nuxt_component_1_lazy;
+      const _component_MobileMenu = _sfc_main$4;
+      const _component_AppFooter = __nuxt_component_3;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "flex flex-col min-h-screen" }, _attrs))}>`);
+      _push(ssrRenderComponent(_component_AppHeader, null, null, _parent));
+      if (unref(isShowingCart)) {
+        _push(ssrRenderComponent(_component_LazyCart, null, null, _parent));
+      } else {
+        _push(`<!---->`);
+      }
+      if (unref(isShowingMobileMenu)) {
+        _push(ssrRenderComponent(_component_MobileMenu, null, null, _parent));
+      } else {
+        _push(`<!---->`);
+      }
+      _push(`<div class="flex flex-col items-center justify-center flex-1 gap-4 min-h-[500px]"><h1 class="text-6xl font-bold">Error ${ssrInterpolate(((_a2 = _ctx.error) == null ? void 0 : _a2.statusCode) || "404")}</h1>`);
+      if ((_b2 = _ctx.error) == null ? void 0 : _b2.message) {
+        _push(`<p class="text-lg">${ssrInterpolate(_ctx.error.message)}</p>`);
+      } else {
+        _push(`<!---->`);
+      }
+      _push(`</div>`);
+      if (unref(isShowingCart) || unref(isShowingMobileMenu)) {
+        _push(`<div class="bg-black opacity-25 inset-0 z-40 fixed"></div>`);
+      } else {
+        _push(`<!---->`);
+      }
+      _push(ssrRenderComponent(_component_AppFooter, null, null, _parent));
+      _push(`</div>`);
+    };
+  }
+});
+const _sfc_setup$1 = _sfc_main$1.setup;
+_sfc_main$1.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("woonuxt_base/app/error.vue");
+  return _sfc_setup$1 ? _sfc_setup$1(props, ctx) : void 0;
+};
+const _sfc_main = {
+  __name: "nuxt-root",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const IslandRenderer = () => null;
+    const nuxtApp = useNuxtApp();
+    nuxtApp.deferHydration();
+    nuxtApp.ssrContext.url;
+    const SingleRenderer = false;
+    provide(PageRouteSymbol, useRoute());
+    nuxtApp.hooks.callHookWith((hooks) => hooks.map((hook) => hook()), "vue:setup");
+    const error = useError();
+    const abortRender = error.value && !nuxtApp.ssrContext.error;
+    onErrorCaptured((err, target, info) => {
+      nuxtApp.hooks.callHook("vue:error", err, target, info).catch((hookError) => console.error("[nuxt] Error in `vue:error` hook", hookError));
+      {
+        const p = nuxtApp.runWithContext(() => showError(err));
+        onServerPrefetch(() => p);
+        return false;
+      }
+    });
+    const islandContext = nuxtApp.ssrContext.islandContext;
+    return (_ctx, _push, _parent, _attrs) => {
+      ssrRenderSuspense(_push, {
+        default: () => {
+          if (unref(abortRender)) {
+            _push(`<div></div>`);
+          } else if (unref(error)) {
+            _push(ssrRenderComponent(unref(_sfc_main$1), { error: unref(error) }, null, _parent));
+          } else if (unref(islandContext)) {
+            _push(ssrRenderComponent(unref(IslandRenderer), { context: unref(islandContext) }, null, _parent));
+          } else if (unref(SingleRenderer)) {
+            ssrRenderVNode(_push, createVNode(resolveDynamicComponent(unref(SingleRenderer)), null, null), _parent);
+          } else {
+            _push(ssrRenderComponent(unref(_sfc_main$2), null, null, _parent));
+          }
+        },
+        _: 1
+      });
+    };
+  }
+};
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("node_modules/nuxt/dist/app/components/nuxt-root.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+let entry;
+{
+  entry = async function createNuxtAppServer(ssrContext) {
+    const vueApp = createApp(_sfc_main);
+    const nuxt = createNuxtApp({ vueApp, ssrContext });
+    try {
+      await applyPlugins(nuxt, plugins);
+      await nuxt.hooks.callHook("app:created", vueApp);
+    } catch (error) {
+      await nuxt.hooks.callHook("app:error", error);
+      nuxt.payload.error = nuxt.payload.error || createError(error);
+    }
+    if (ssrContext == null ? void 0 : ssrContext._renderResponse) {
+      throw new Error("skipping render");
+    }
+    return vueApp;
+  };
+}
+const entry$1 = (ssrContext) => entry(ssrContext);
+
+export { showError as A, GqlUpdateCustomer as G, I$1 as I, __nuxt_component_0 as _, __nuxt_component_2 as a, _sfc_main$8 as b, _export_sfc as c, useHelpers as d, entry$1 as default, __nuxt_component_10 as e, _sfc_main$a as f, useAsyncGql as g, useHead as h, useState as i, useAuth as j, useRouter as k, GqlCheckout as l, useRuntimeConfig as m, useAppConfig as n, useI18n as o, useRoute as p, useSeoMeta as q, GqlGetAllowedCountries as r, GqlGetStates as s, useLazyAsyncData as t, useCart as u, useImage as v, useProducts as w, useSorting as x, useFiltering as y, useSearching as z };
+//# sourceMappingURL=server.mjs.map
