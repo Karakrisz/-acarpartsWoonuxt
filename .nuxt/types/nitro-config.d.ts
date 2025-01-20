@@ -7,8 +7,8 @@ import type { default as appConfig0 } from "../../woonuxt_base/app/app.config";
 
 type UserAppConfig = Defu<{}, [typeof appConfig0]>
 
-declare module 'nitropack' {
+declare module "nitropack/types" {
   interface AppConfig extends UserAppConfig {}
+
 }
-    
 export {}

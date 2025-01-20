@@ -2,6 +2,12 @@
 {
   "compilerOptions": {
     "paths": {
+      "nitropack/types": [
+        "../node_modules/nitropack/types"
+      ],
+      "nitropack/runtime": [
+        "../node_modules/nitropack/runtime"
+      ],
       "nitropack": [
         "../node_modules/nitropack"
       ],
@@ -47,6 +53,9 @@
       "nuxt": [
         "../node_modules/nuxt"
       ],
+      "vite/client": [
+        "../node_modules/vite/client"
+      ],
       "~": [
         ".."
       ],
@@ -70,6 +79,9 @@
       ],
       "@@/*": [
         "../*"
+      ],
+      "#shared": [
+        "../shared"
       ],
       "assets": [
         "../assets"
@@ -141,22 +153,19 @@
         "./imports"
       ],
       "#tailwind-config": [
-        "./tailwind.config"
-      ],
-      "#tailwind-config/*": [
-        "./tailwind.config/*"
+        "./tailwind/expose"
       ],
       "#app-manifest": [
-        "./manifest/meta/dev"
+        "./manifest/meta/dev.json"
+      ],
+      "#components": [
+        "./components"
       ],
       "#build": [
         "."
       ],
       "#build/*": [
         "./*"
-      ],
-      "#components": [
-        "./components"
       ]
     },
     "esModuleInterop": true,
@@ -220,6 +229,17 @@
     "../node_modules",
     "../node_modules/nuxt/node_modules",
     "../woonuxt_base/node_modules",
+    "../node_modules/woonuxt-settings/node_modules",
+    "../node_modules/nuxt-graphql-client/node_modules",
+    "../node_modules/@nuxt/icon/node_modules",
+    "../node_modules/nuxt-phosphor-icons/node_modules",
+    "../node_modules/@nuxt/image/node_modules",
+    "../node_modules/@nuxtjs/i18n/node_modules",
+    "../node_modules/@nuxtjs/tailwindcss/node_modules",
+    "../node_modules/@nuxt/fonts/node_modules",
+    "../node_modules/@nuxt/eslint/node_modules",
+    "../node_modules/@nuxt/devtools/node_modules",
+    "../node_modules/@nuxt/telemetry/node_modules",
     "../node_modules/woonuxt-settings/runtime/server",
     "../node_modules/woonuxt-settings/dist/runtime/server",
     "../node_modules/nuxt-graphql-client/runtime/server",

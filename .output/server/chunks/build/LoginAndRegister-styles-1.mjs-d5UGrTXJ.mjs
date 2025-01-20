@@ -1,4 +1,0 @@
-const LoginAndRegister_vue_vue_type_style_index_0_scoped_0a09885d_lang = "input[data-v-0a09885d]{border-radius:.5rem;border-width:1px;margin-bottom:1rem;width:100%;--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity));padding:.75rem 1rem}";
-
-export { LoginAndRegister_vue_vue_type_style_index_0_scoped_0a09885d_lang as L };
-//# sourceMappingURL=LoginAndRegister-styles-1.mjs-d5UGrTXJ.mjs.map

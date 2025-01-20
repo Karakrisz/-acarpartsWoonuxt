@@ -196,7 +196,7 @@ const inlineConfig = {
       "zmdi",
       "zondicons"
     ],
-    "fetchTimeout": 500
+    "fetchTimeout": 1500
   }
 }
 

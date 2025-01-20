@@ -197,7 +197,7 @@ declare const inlineConfig = {
       "zmdi",
       "zondicons"
     ],
-    "fetchTimeout": 500
+    "fetchTimeout": 1500
   }
 }
 type ResolvedAppConfig = Defu<typeof inlineConfig, [typeof cfg0]>
