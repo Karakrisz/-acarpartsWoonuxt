@@ -863,7 +863,7 @@ const _inlineRuntimeConfig = {
     "CURRENCY_CODE": "HUF",
     "CURRENCY_SYMBOL": "Ft",
     "WOO_NUXT_SEO": [],
-    "STRIPE_PUBLISHABLE_KEY": "pk_test_51Pf3G2RrkeFK8rAKe9nNF5XeK9iJ8AEYKzt8TNS0475Qu302lmBOdF6dgOZ7ew2OGbwboL6JRag8kKIqRUi0pRrh00Yncz8S61",
+    "STRIPE_PUBLISHABLE_KEY": "pk_test_51QhDhtApGI1m3WskcnA7NCPRRhxkPD2tGDvtPjYyjfepWxYIEAXyrHNVcX0xKKqFoVsAelBpsjiglfyagayk9GHq002laOcxAA",
     "graphql-client": {
       "clients": {
         "default": {
